@@ -1,0 +1,7 @@
+[package]
+name = "rangemap"
+version = "0.1.0"
+authors = ["Jeff Parsons <jeff@parsons.io>"]
+edition = "2018"
+
+[dependencies]
