@@ -2,7 +2,7 @@ dist: trusty
 language: rust
 rust:
   # Don't forget to update in README and documentation.
-  - 1.31.1
+  - 1.32.0
   - stable
   - beta
   - nightly
