@@ -372,7 +372,7 @@ mod tests {
 
             for (k, v) in permutation {
                 // Insert it into both maps.
-                range_map.insert(k.clone(), v.clone());
+                range_map.insert(k.clone(), v);
                 stupid.insert(k, v);
 
                 // At every step, both maps should contain the same stuff.
