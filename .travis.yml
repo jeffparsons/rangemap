@@ -1,0 +1,16 @@
+dist: trusty
+language: rust
+rust:
+  # Don't forget to update in README and documentation.
+  - 1.24.1
+  - stable
+  - beta
+  - nightly
+script: ci/pre_commit.sh
+notifications:
+  email:
+    on_success: never
+branches:
+  only:
+    - master
+    - auto
