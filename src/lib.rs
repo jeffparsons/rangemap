@@ -6,9 +6,13 @@
 // Until then, we're tracking nightly.
 #![feature(range_contains)]
 
+#[cfg(test)]
+mod stupid_range_map;
+
 use std::collections::BTreeMap;
 use std::ops::Range;
 
+#[derive(Clone)]
 pub struct RangeMap<K, V> {
     // Inner B-Tree map. Stores pairs of ranges and their
     // associated keys, indexed by the range starts.
@@ -362,9 +366,40 @@ mod tests {
         );
     }
 
-    // TODO: Build StupidRangeMap that is just a `BTreeMap`
-    // of individual values, which inserts ranges as individual values.
-    //
-    // Use this to exhaustively test every step of every permutation
-    // of a bunch of overlapping and touching ranges.
+    #[test]
+    // Test every permutation of a bunch of touching and overlapping ranges.
+    fn lots_of_interesting_ranges() {
+        use permutator::Permutation;
+        use stupid_range_map::StupidU32RangeMap;
+
+        let mut ranges_with_values = [
+            (2..3, false),
+            // A duplicate duplicates
+            (2..3, false),
+            // Almost a duplicate, but with a different value
+            (2..3, true),
+            // A few small ranges, some of them overlapping others,
+            // some of them touching others
+            (3..5, true),
+            (4..6, true),
+            (5..7, true),
+            // A really big range
+            (2..6, true),
+        ];
+
+        ranges_with_values.permutation().for_each(|permutation| {
+            let mut range_map: RangeMap<u32, bool> = RangeMap::new();
+            let mut stupid: StupidU32RangeMap<bool> = StupidU32RangeMap::new();
+
+            for (k, v) in permutation {
+                // Insert it into both maps.
+                range_map.insert(k.clone(), v.clone());
+                stupid.insert(k, v);
+
+                // At every step, both maps should contain the same stuff.
+                let stupid2: StupidU32RangeMap<bool> = range_map.clone().into();
+                assert_eq!(stupid, stupid2);
+            }
+        });
+    }
 }
