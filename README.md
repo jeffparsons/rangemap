@@ -1,3 +1,3 @@
 # rangemap
 
-A Rust library maps and sets of ranges.
+A Rust library providing maps and sets of ranges.
