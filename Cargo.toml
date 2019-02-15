@@ -3,6 +3,15 @@ name = "rangemap"
 version = "0.1.0"
 authors = ["Jeff Parsons <jeff@parsons.io>"]
 edition = "2018"
+license = "MIT/Apache-2.0"
+readme = "README.md"
+repository = "https://github.com/jeffparsons/rangemap"
+documentation = "https://docs.rs/rangemap"
+homepage = "https://github.com/jeffparsons/rangemap"
+description = """
+Maps and sets of ranges to values.
+"""
+categories = ["data-structures"]
 
 [dependencies]
 
