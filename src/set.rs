@@ -7,11 +7,20 @@ pub struct RangeSet<K> {
     rm: RangeMap<K, ()>,
 }
 
+impl<K> Default for RangeSet<K>
+where
+    K: Ord + Clone,
+{
+    fn default() -> Self {
+        RangeSet::new()
+    }
+}
+
 impl<K> RangeSet<K>
 where
     K: Ord + Clone,
 {
-    pub fn new() -> RangeSet<K> {
+    pub fn new() -> Self {
         RangeSet {
             rm: RangeMap::new(),
         }

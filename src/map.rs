@@ -13,12 +13,22 @@ pub struct RangeMap<K, V> {
     btm: BTreeMap<K, (Range<K>, V)>,
 }
 
+impl<K, V> Default for RangeMap<K, V>
+where
+    K: Ord + Clone,
+    V: Eq + Clone,
+{
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl<K, V> RangeMap<K, V>
 where
     K: Ord + Clone,
     V: Eq + Clone,
 {
-    pub fn new() -> RangeMap<K, V> {
+    pub fn new() -> Self {
         RangeMap {
             btm: BTreeMap::new(),
         }
