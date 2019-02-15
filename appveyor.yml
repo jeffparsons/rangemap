@@ -19,5 +19,4 @@ install:
 build: false
 
 test_script:
-  - cd %APPVEYOR_BUILD_FOLDER%\rangemap
   - cargo test
