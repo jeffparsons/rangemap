@@ -6,7 +6,12 @@ rust:
   - stable
   - beta
   - nightly
-script: ./pre_commit.sh
+before_script:
+  - rustup component add clippy rustfmt
+script:
+  - cargo test
+  - cargo fmt
+  - cargo clippy --bins --examples --tests --benches -- -D warnings
 notifications:
   email:
     on_success: never
