@@ -35,7 +35,10 @@ where
             .filter(|(_start, (stored_range, _value))| {
                 // Does the only candidate range contain
                 // the requested key?
-                stored_range.contains(key)
+                //
+                // TODO: Use `contains` once https://github.com/rust-lang/rust/issues/32311
+                // is stabilized.
+                stored_range.contains_item(key)
             })
             .map(|(_start, (_stored_range, value))| value)
     }
