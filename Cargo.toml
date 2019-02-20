@@ -9,7 +9,9 @@ repository = "https://github.com/jeffparsons/rangemap"
 documentation = "https://docs.rs/rangemap"
 homepage = "https://github.com/jeffparsons/rangemap"
 description = """
-Maps and sets of ranges to values.
+Map data structure whose keys are stored as ranges.
+
+Contiguous and overlapping ranges that map to the same value are coalesced into a single range.
 """
 categories = ["data-structures"]
 
