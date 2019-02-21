@@ -18,4 +18,10 @@ categories = ["data-structures"]
 [dependencies]
 
 [dev-dependencies]
-permutator = "0.3.3"
+permutator = "0.3"
+criterion = "0.2"
+rand = "0.6"
+
+[[bench]]
+name = "kitchen_sink"
+harness = false
