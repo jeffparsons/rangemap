@@ -143,6 +143,52 @@ where
             .insert(new_range.start.clone(), (new_range, new_value));
     }
 
+    /// Removes a range from the map, if all or any of it was present.
+    pub fn remove(&mut self, range: Range<K>) {
+        use std::ops::Bound;
+
+        // Is there a stored range overlapping the start of
+        // the range to insert?
+        //
+        // If there is any such stored range, it will be the last
+        // whose start is less than or equal to the start of the range to insert.
+        if let Some((stored_range, stored_value)) = self
+            .btm
+            .range((Bound::Unbounded, Bound::Included(&range.start)))
+            .next_back()
+            .filter(|(_start, (stored_range, _stored_value))| {
+                // Does the only candidate range overlap
+                // the range to insert?
+                stored_range.overlaps(&range)
+            })
+            .map(|(_start, (stored_range, stored_value))| (stored_range, stored_value))
+        {
+            self.adjust_overlapping_ranges_for_remove(
+                stored_range.clone(),
+                stored_value.clone(),
+                &range,
+            );
+        }
+
+        // Are there any stored ranges whose heads overlap the range to insert?
+        //
+        // If there are any such stored ranges (that weren't already caught above),
+        // their starts will fall somewhere after the start of the range to insert,
+        // and before its end.
+        while let Some((stored_range, stored_value)) = self
+            .btm
+            .range((Bound::Excluded(&range.start), Bound::Excluded(&range.end)))
+            .next()
+            .map(|(_start, (stored_range, stored_value))| (stored_range, stored_value))
+        {
+            self.adjust_overlapping_ranges_for_remove(
+                stored_range.clone(),
+                stored_value.clone(),
+                &range,
+            );
+        }
+    }
+
     fn adjust_touching_ranges_for_insert(
         &mut self,
         stored_range: Range<K>,
@@ -192,6 +238,34 @@ where
             }
         }
     }
+
+    fn adjust_overlapping_ranges_for_remove(
+        &mut self,
+        stored_range: Range<K>,
+        stored_value: V,
+        range_to_remove: &Range<K>,
+    ) {
+        // Delete the stored range, and then add back between
+        // 0 and 2 subranges at the ends of the range to insert.
+        self.btm.remove(&stored_range.start);
+        if stored_range.start < range_to_remove.start {
+            // Insert the piece left of the range to insert.
+            self.btm.insert(
+                stored_range.start.clone(),
+                (
+                    stored_range.start..range_to_remove.start.clone(),
+                    stored_value.clone(),
+                ),
+            );
+        }
+        if stored_range.end > range_to_remove.end {
+            // Insert the piece right of the range to insert.
+            self.btm.insert(
+                range_to_remove.end.clone(),
+                (range_to_remove.end.clone()..stored_range.end, stored_value),
+            );
+        }
+    }
 }
 
 #[cfg(test)]
@@ -211,6 +285,10 @@ mod tests {
             self.iter().cloned().collect()
         }
     }
+
+    //
+    // Insertion tests
+    //
 
     #[test]
     fn empty_map_is_empty() {
@@ -380,5 +458,72 @@ mod tests {
                 assert_eq!(stupid, stupid2);
             }
         });
+    }
+
+    //
+    // Removal tests
+    //
+
+    #[test]
+    fn remove_from_empty_map() {
+        let mut range_map: RangeMap<u32, bool> = RangeMap::new();
+        range_map.remove(0..50);
+        assert_eq!(range_map.to_vec(), vec![]);
+    }
+
+    #[test]
+    fn remove_non_covered_range_before_stored() {
+        let mut range_map: RangeMap<u32, bool> = RangeMap::new();
+        range_map.insert(25..75, false);
+        range_map.remove(0..25);
+        assert_eq!(range_map.to_vec(), vec![(25..75, false)]);
+    }
+
+    #[test]
+    fn remove_non_covered_range_after_stored() {
+        let mut range_map: RangeMap<u32, bool> = RangeMap::new();
+        range_map.insert(25..75, false);
+        range_map.remove(75..100);
+        assert_eq!(range_map.to_vec(), vec![(25..75, false)]);
+    }
+
+    #[test]
+    fn remove_overlapping_start_of_stored() {
+        let mut range_map: RangeMap<u32, bool> = RangeMap::new();
+        range_map.insert(25..75, false);
+        range_map.remove(0..30);
+        assert_eq!(range_map.to_vec(), vec![(30..75, false)]);
+    }
+
+    #[test]
+    fn remove_middle_of_stored() {
+        let mut range_map: RangeMap<u32, bool> = RangeMap::new();
+        range_map.insert(25..75, false);
+        range_map.remove(30..70);
+        assert_eq!(range_map.to_vec(), vec![(25..30, false), (70..75, false)]);
+    }
+
+    #[test]
+    fn remove_overlapping_end_of_stored() {
+        let mut range_map: RangeMap<u32, bool> = RangeMap::new();
+        range_map.insert(25..75, false);
+        range_map.remove(70..100);
+        assert_eq!(range_map.to_vec(), vec![(25..70, false)]);
+    }
+
+    #[test]
+    fn remove_exactly_stored() {
+        let mut range_map: RangeMap<u32, bool> = RangeMap::new();
+        range_map.insert(25..75, false);
+        range_map.remove(25..75);
+        assert_eq!(range_map.to_vec(), vec![]);
+    }
+
+    #[test]
+    fn remove_superset_of_stored() {
+        let mut range_map: RangeMap<u32, bool> = RangeMap::new();
+        range_map.insert(25..75, false);
+        range_map.remove(0..100);
+        assert_eq!(range_map.to_vec(), vec![]);
     }
 }
