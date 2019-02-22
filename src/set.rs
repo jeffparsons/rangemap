@@ -37,6 +37,10 @@ where
     pub fn insert(&mut self, range: Range<K>) {
         self.rm.insert(range, ());
     }
+
+    pub fn remove(&mut self, range: Range<K>) {
+        self.rm.remove(range);
+    }
 }
 
 #[cfg(test)]
@@ -67,5 +71,13 @@ mod tests {
         let mut range_set: RangeSet<u32> = RangeSet::new();
         range_set.insert(0..50);
         assert_eq!(range_set.to_vec(), vec![0..50]);
+    }
+
+    #[test]
+    fn remove_partially_overlapping() {
+        let mut range_set: RangeSet<u32> = RangeSet::new();
+        range_set.insert(0..50);
+        range_set.remove(25..75);
+        assert_eq!(range_set.to_vec(), vec![0..25]);
     }
 }
