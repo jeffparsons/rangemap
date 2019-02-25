@@ -25,14 +25,16 @@ impl<T> RangeSet<T>
 where
     T: Ord + Clone,
 {
+    /// Makes a new empty `RangeSet`.
     pub fn new() -> Self {
         RangeSet {
             rm: RangeMap::new(),
         }
     }
 
-    pub fn contains(&self, key: &T) -> bool {
-        self.rm.contains_key(key)
+    /// Returns `true` if any range in the set covers the specified value.
+    pub fn contains(&self, value: &T) -> bool {
+        self.rm.contains_key(value)
     }
 
     /// Gets an ordered iterator over all ranges,

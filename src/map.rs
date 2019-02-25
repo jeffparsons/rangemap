@@ -32,12 +32,15 @@ where
     K: Ord + Clone,
     V: Eq + Clone,
 {
+    /// Makes a new empty `RangeMap`.
     pub fn new() -> Self {
         RangeMap {
             btm: BTreeMap::new(),
         }
     }
 
+    /// Returns a reference to the value corresponding to the key,
+    /// if the key is covered by any range in the map.
     pub fn get(&self, key: &K) -> Option<&V> {
         use std::ops::Bound;
 
@@ -57,6 +60,7 @@ where
             .map(|(_start, (_stored_range, value))| value)
     }
 
+    /// Returns `true` if any range in the map covers the specified key.
     pub fn contains_key(&self, key: &K) -> bool {
         self.get(key).is_some()
     }
