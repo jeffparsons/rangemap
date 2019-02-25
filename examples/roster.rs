@@ -7,7 +7,7 @@ fn main() {
     let mut roster = RangeMap::new();
 
     // Set up initial roster.
-    let start_of_roster = Utc.ymd(2019, 1, 1);
+    let start_of_roster = Utc.ymd(2019, 1, 7);
     let mut week_start = start_of_roster;
     for _ in 0..3 {
         for person in &people {
