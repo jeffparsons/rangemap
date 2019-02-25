@@ -30,6 +30,8 @@ where
         self.rm.contains_key(key)
     }
 
+    /// Gets an ordered iterator over all key ranges,
+    /// ordered by key range.
     pub fn iter(&self) -> impl Iterator<Item = &Range<K>> {
         self.rm.iter().map(|(range, _v)| range)
     }

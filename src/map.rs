@@ -57,6 +57,10 @@ where
         self.get(key).is_some()
     }
 
+    /// Gets an iterator over all pairs of key range and value,
+    /// ordered by key range.
+    ///
+    /// The iterator element type is `(&'a Range<K>, &'a V)`.
     pub fn iter(&self) -> impl Iterator<Item = &(Range<K>, V)> {
         self.btm.values()
     }
