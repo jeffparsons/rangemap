@@ -9,9 +9,15 @@ fn kitchen_sink(kvs: &[(Range<i32>, bool)]) {
     use rangemap::RangeMap;
 
     let mut range_map: RangeMap<i32, bool> = RangeMap::new();
+    // Remove every second range.
+    let mut remove = false;
     for (range, value) in kvs {
-        // TODO: Implement removal, and then alternate inserting and removing.
-        range_map.insert(range.clone(), value.clone());
+        if remove {
+            range_map.remove(range.clone());
+        } else {
+            range_map.insert(range.clone(), value.clone());
+        }
+        remove = !remove;
     }
 }
 
@@ -21,9 +27,7 @@ fn criterion_benchmark(c: &mut Criterion) {
         let kvs: Vec<(Range<i32>, bool)> = (0..1000)
             .map(|_| {
                 let start = rng.gen_range(0, 1000);
-                // We don't want the ranges to be too big or too small;
-                // we're trying to get a healthy combination of overlaps and non-overlaps.
-                let end = start + rng.gen_range(0, 100);
+                let end = start + rng.gen_range(1, 100);
                 let value: bool = random();
                 (start..end, value)
             })
