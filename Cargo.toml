@@ -21,6 +21,7 @@ categories = ["data-structures"]
 permutator = "0.3"
 criterion = "0.2"
 rand = "0.6"
+chrono = "0.4" # For examples
 
 [[bench]]
 name = "kitchen_sink"
