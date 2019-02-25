@@ -41,6 +41,12 @@ where
         self.rm.iter().map(|(range, _v)| range)
     }
 
+    /// Insert a range into the set.
+    ///
+    /// If the inserted range either overlaps or is immediately adjacent
+    /// any existing range, then the ranges will be coalesced into
+    /// a single contiguous range.
+    ///
     /// # Panics
     ///
     /// Panics if range `start >= end`.
@@ -49,6 +55,10 @@ where
     }
 
     /// Removes a range from the set, if all or any of it was present.
+    ///
+    /// If the range to be removed _partially_ overlaps any ranges
+    /// in the set, then those ranges will be contracted to no
+    /// longer cover the removed range.
     ///
     /// # Panics
     ///

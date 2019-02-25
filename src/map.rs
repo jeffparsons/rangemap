@@ -69,6 +69,16 @@ where
         self.btm.values()
     }
 
+    /// Insert a pair of key range and value into the map.
+    ///
+    /// If the inserted range partially or completely overlaps any
+    /// existing range in the map, then the existing range (or ranges) will be
+    /// partially or completely replaced by the inserted range.
+    ///
+    /// If the inserted range either overlaps or is immediately adjacent
+    /// any existing range _mapping to the same value_, then the ranges
+    /// will be coalesced into a single contiguous range.
+    ///
     /// # Panics
     ///
     /// Panics if range `start >= end`.
@@ -154,6 +164,11 @@ where
     }
 
     /// Removes a range from the map, if all or any of it was present.
+    ///
+    /// If the range to be removed _partially_ overlaps any ranges
+    /// in the map, then those ranges will be contracted to no
+    /// longer cover the removed range.
+    ///
     ///
     /// # Panics
     ///
