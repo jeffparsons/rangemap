@@ -61,13 +61,15 @@ where
         self.btm.values()
     }
 
+    /// # Panics
+    ///
+    /// Panics if range `start >= end`.
     pub fn insert(&mut self, range: Range<K>, value: V) {
         use std::ops::Bound;
 
-        // We don't want to have to think about empty ranges.
-        if range.start == range.end {
-            return;
-        }
+        // We don't want to have to make empty ranges make sense;
+        // they don't represent anything meaningful in this structure.
+        assert!(range.start < range.end);
 
         // We want to be able to expand the range's start and end
         // to "swallow up" any overlapping or immediately-adjacent
@@ -144,8 +146,16 @@ where
     }
 
     /// Removes a range from the map, if all or any of it was present.
+    ///
+    /// # Panics
+    ///
+    /// Panics if range `start >= end`.
     pub fn remove(&mut self, range: Range<K>) {
         use std::ops::Bound;
+
+        // We don't want to have to make empty ranges make sense;
+        // they don't represent anything meaningful in this structure.
+        assert!(range.start < range.end);
 
         // Is there a stored range overlapping the start of
         // the range to insert?

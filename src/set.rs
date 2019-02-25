@@ -34,10 +34,18 @@ where
         self.rm.iter().map(|(range, _v)| range)
     }
 
+    /// # Panics
+    ///
+    /// Panics if range `start >= end`.
     pub fn insert(&mut self, range: Range<K>) {
         self.rm.insert(range, ());
     }
 
+    /// Removes a range from the set, if all or any of it was present.
+    ///
+    /// # Panics
+    ///
+    /// Panics if range `start >= end`.
     pub fn remove(&mut self, range: Range<K>) {
         self.rm.remove(range);
     }
