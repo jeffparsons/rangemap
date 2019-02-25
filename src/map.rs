@@ -3,6 +3,10 @@ use std::collections::BTreeMap;
 use std::ops::Range;
 
 #[derive(Clone)]
+/// A map whose keys are stored as ranges.
+///
+/// Contiguous and overlapping ranges that map to the same value
+/// are coalesced into a single range.
 pub struct RangeMap<K, V> {
     // Inner B-Tree map. Stores pairs of ranges and their
     // associated keys, indexed by the range starts.

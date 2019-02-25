@@ -3,22 +3,27 @@ use std::ops::Range;
 use crate::RangeMap;
 
 #[derive(Clone)]
-pub struct RangeSet<K> {
-    rm: RangeMap<K, ()>,
+/// A set whose items are stored as ranges.
+///
+/// See [`RangeMap`]'s documentation for more details.
+///
+/// [`RangeMap`]: struct.RangeMap.html
+pub struct RangeSet<T> {
+    rm: RangeMap<T, ()>,
 }
 
-impl<K> Default for RangeSet<K>
+impl<T> Default for RangeSet<T>
 where
-    K: Ord + Clone,
+    T: Ord + Clone,
 {
     fn default() -> Self {
         RangeSet::new()
     }
 }
 
-impl<K> RangeSet<K>
+impl<T> RangeSet<T>
 where
-    K: Ord + Clone,
+    T: Ord + Clone,
 {
     pub fn new() -> Self {
         RangeSet {
@@ -26,20 +31,20 @@ where
         }
     }
 
-    pub fn contains(&self, key: &K) -> bool {
+    pub fn contains(&self, key: &T) -> bool {
         self.rm.contains_key(key)
     }
 
-    /// Gets an ordered iterator over all key ranges,
-    /// ordered by key range.
-    pub fn iter(&self) -> impl Iterator<Item = &Range<K>> {
+    /// Gets an ordered iterator over all ranges,
+    /// ordered by range.
+    pub fn iter(&self) -> impl Iterator<Item = &Range<T>> {
         self.rm.iter().map(|(range, _v)| range)
     }
 
     /// # Panics
     ///
     /// Panics if range `start >= end`.
-    pub fn insert(&mut self, range: Range<K>) {
+    pub fn insert(&mut self, range: Range<T>) {
         self.rm.insert(range, ());
     }
 
@@ -48,7 +53,7 @@ where
     /// # Panics
     ///
     /// Panics if range `start >= end`.
-    pub fn remove(&mut self, range: Range<K>) {
+    pub fn remove(&mut self, range: Range<T>) {
         self.rm.remove(range);
     }
 }
@@ -57,15 +62,15 @@ where
 mod tests {
     use super::*;
 
-    trait RangeMapExt<K> {
-        fn to_vec(&self) -> Vec<Range<K>>;
+    trait RangeMapExt<T> {
+        fn to_vec(&self) -> Vec<Range<T>>;
     }
 
-    impl<K> RangeMapExt<K> for RangeSet<K>
+    impl<T> RangeMapExt<T> for RangeSet<T>
     where
-        K: Ord + Clone,
+        T: Ord + Clone,
     {
-        fn to_vec(&self) -> Vec<Range<K>> {
+        fn to_vec(&self) -> Vec<Range<T>> {
             self.iter().cloned().collect()
         }
     }
