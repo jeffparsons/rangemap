@@ -8,7 +8,6 @@ A corresponding [RangeSet](struct.RangeSet.html) structure is also provided.
 
 # Example: use with Chrono
 
-
 ```rust
 use chrono::offset::TimeZone;
 use chrono::{Duration, Utc};

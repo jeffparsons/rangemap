@@ -14,14 +14,19 @@ Map data structure whose keys are stored as ranges.
 Contiguous and overlapping ranges that map to the same value are coalesced into a single range.
 """
 categories = ["data-structures"]
+build = "build.rs"
 
 [dependencies]
+
+[build-dependencies]
+skeptic = "0.13"
 
 [dev-dependencies]
 permutator = "0.3"
 criterion = "0.2"
 rand = "0.6"
 chrono = "0.4" # For examples
+skeptic = "0.13"
 
 [[bench]]
 name = "kitchen_sink"
