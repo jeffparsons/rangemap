@@ -52,6 +52,7 @@ fn main() {
 */
 
 mod map;
+mod range_wrapper;
 mod set;
 mod std_ext;
 #[cfg(test)]
