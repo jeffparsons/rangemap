@@ -36,9 +36,15 @@ where
         }
     }
 
-    /// Returns a reference to the value corresponding to the key,
+    /// Returns a reference to the value corresponding to the given key,
     /// if the key is covered by any range in the map.
     pub fn get(&self, key: &K) -> Option<&V> {
+        self.get_key_value(key).map(|(_range, value)| value)
+    }
+
+    /// Returns the range-value pair (as a pair of references) corresponding
+    /// to the given key, if the key is covered by any range in the map.
+    pub fn get_key_value(&self, key: &K) -> Option<(&Range<K>, &V)> {
         use std::ops::Bound;
 
         // The only stored range that could contain the given key is the
@@ -55,7 +61,7 @@ where
                 // is stabilized.
                 range_start_wrapper.range.contains_item(key)
             })
-            .map(|(_range_start_wrapper, value)| value)
+            .map(|(range_start_wrapper, value)| (&range_start_wrapper.range, value))
     }
 
     /// Returns `true` if any range in the map covers the specified key.
@@ -115,10 +121,13 @@ where
                     .range
                     .touches(&new_range_start_wrapper.range)
             })
+            .map(|(stored_range_start_wrapper, stored_value)| {
+                (stored_range_start_wrapper.clone(), stored_value.clone())
+            })
         {
             self.adjust_touching_ranges_for_insert(
-                stored_range_start_wrapper.clone(),
-                (*stored_value).clone(),
+                stored_range_start_wrapper,
+                stored_value,
                 &mut new_range_start_wrapper.range,
                 &new_value,
             );
@@ -156,9 +165,12 @@ where
                 break;
             }
 
+            let stored_range_start_wrapper = stored_range_start_wrapper.clone();
+            let stored_value = stored_value.clone();
+
             self.adjust_touching_ranges_for_insert(
-                stored_range_start_wrapper.clone(),
-                (*stored_value).clone(),
+                stored_range_start_wrapper,
+                stored_value,
                 &mut new_range_start_wrapper.range,
                 &new_value,
             );
@@ -203,12 +215,12 @@ where
                 stored_range_start_wrapper.range.overlaps(&range)
             })
             .map(|(stored_range_start_wrapper, stored_value)| {
-                (stored_range_start_wrapper, stored_value)
+                (stored_range_start_wrapper.clone(), stored_value.clone())
             })
         {
             self.adjust_overlapping_ranges_for_remove(
-                stored_range_start_wrapper.clone(),
-                stored_value.clone(),
+                stored_range_start_wrapper,
+                stored_value,
                 &range,
             );
         }
@@ -230,12 +242,12 @@ where
             ))
             .next()
             .map(|(stored_range_start_wrapper, stored_value)| {
-                (stored_range_start_wrapper, stored_value)
+                (stored_range_start_wrapper.clone(), stored_value.clone())
             })
         {
             self.adjust_overlapping_ranges_for_remove(
-                stored_range_start_wrapper.clone(),
-                stored_value.clone(),
+                stored_range_start_wrapper,
+                stored_value,
                 &range,
             );
         }
@@ -510,6 +522,26 @@ mod tests {
                 assert_eq!(stupid, stupid2);
             }
         });
+    }
+
+    //
+    // Get* tests
+    //
+
+    #[test]
+    fn get() {
+        let mut range_map: RangeMap<u32, bool> = RangeMap::new();
+        range_map.insert(0..50, false);
+        assert_eq!(range_map.get(&49), Some(&false));
+        assert_eq!(range_map.get(&50), None);
+    }
+
+    #[test]
+    fn get_key_value() {
+        let mut range_map: RangeMap<u32, bool> = RangeMap::new();
+        range_map.insert(0..50, false);
+        assert_eq!(range_map.get_key_value(&49), Some((&(0..50), &false)));
+        assert_eq!(range_map.get_key_value(&50), None);
     }
 
     //

@@ -32,6 +32,11 @@ where
         }
     }
 
+    /// Returns a reference to the range covering the given key, if any.
+    pub fn get(&self, value: &T) -> Option<&Range<T>> {
+        self.rm.get_key_value(value).map(|(range, _)| range)
+    }
+
     /// Returns `true` if any range in the set covers the specified value.
     pub fn contains(&self, value: &T) -> bool {
         self.rm.contains_key(value)
