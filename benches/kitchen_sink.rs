@@ -15,7 +15,7 @@ fn kitchen_sink(kvs: &[(Range<i32>, bool)]) {
         if remove {
             range_map.remove(range.clone());
         } else {
-            range_map.insert(range.clone(), value.clone());
+            range_map.insert(range.clone(), *value);
         }
         remove = !remove;
     }

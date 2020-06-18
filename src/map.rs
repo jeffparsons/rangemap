@@ -89,13 +89,13 @@ where
     ///
     /// # Panics
     ///
-    /// Panics if range `start >= end`.
+    /// Panics if range `start > end`.
     pub fn insert(&mut self, range: Range<K>, value: V) {
         use std::ops::Bound;
 
         // We don't want to have to make empty ranges make sense;
         // they don't represent anything meaningful in this structure.
-        assert!(range.start < range.end);
+        assert!(range.start <= range.end);
 
         // Wrap up the given range so that we can "borrow"
         // it as a wrapper reference to either its start or end.
