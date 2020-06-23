@@ -19,7 +19,7 @@ build = "build.rs"
 [dependencies]
 
 [build-dependencies]
-skeptic = "0.13"
+skeptic = { version = "0.13", optional = true }
 
 [dev-dependencies]
 permutator = "0.3"
@@ -27,6 +27,13 @@ criterion = "0.2"
 rand = "0.6"
 chrono = "0.4" # For examples
 skeptic = "0.13"
+
+[features]
+# Skeptic is only needed for doc generation.
+# Gate it on an optional-but-default feature
+# that people can disable if they don't want
+# to pull in skeptic and all of its dependencies.
+default = ["skeptic"]
 
 [[bench]]
 name = "kitchen_sink"
