@@ -18,6 +18,8 @@ categories = ["data-structures"]
 build = "build.rs"
 
 [dependencies]
+# TODO: Make this an optional dependency based on default "rangeinclusive" feature.
+num = "0.3"
 
 [build-dependencies]
 skeptic = { version = "0.13", optional = true }
