@@ -47,6 +47,10 @@ where
             // Convert to inclusive end.
             // (This is only valid because u32 has
             // the "successor function".)
+            //
+            // NOTE: Clippy's `range_minus_one` lint is a bit overzealous here,
+            // because we _can't_ pass an open-ended range to `insert`.
+            #[allow(clippy::range_minus_one)]
             stupid.insert(range.start..=(range.end - 1), value.clone());
         }
         stupid

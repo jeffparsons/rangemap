@@ -517,6 +517,9 @@ mod tests {
             for (k, v) in permutation {
                 // Insert it into both maps.
                 range_map.insert(k.clone(), v);
+                // NOTE: Clippy's `range_minus_one` lint is a bit overzealous here,
+                // because we _can't_ pass an open-ended range to `insert`.
+                #[allow(clippy::range_minus_one)]
                 stupid.insert(k.start..=(k.end - 1), v);
 
                 // At every step, both maps should contain the same stuff.
