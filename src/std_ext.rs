@@ -4,9 +4,6 @@ use std::ops::{Range, RangeInclusive};
 pub trait RangeExt<T> {
     fn overlaps(&self, other: &Self) -> bool;
     fn touches(&self, other: &Self) -> bool;
-    // TODO: Remove once https://github.com/rust-lang/rust/issues/32311
-    // is stabilized.
-    fn contains_item(&self, item: &T) -> bool;
 }
 
 impl<T> RangeExt<T> for Range<T>
@@ -26,12 +23,6 @@ where
         // or immediately adjacent.
         max(&self.start, &other.start) <= min(&self.end, &other.end)
     }
-
-    // TODO: Remove once https://github.com/rust-lang/rust/issues/32311
-    // is stabilized.
-    fn contains_item(&self, item: &T) -> bool {
-        *item >= self.start && *item < self.end
-    }
 }
 
 pub trait RangeInclusiveExt<T> {
@@ -39,9 +30,6 @@ pub trait RangeInclusiveExt<T> {
     fn touches(&self, other: &Self) -> bool
     where
         T: StepLite + Bounded + Clone;
-    // TODO: Remove once https://github.com/rust-lang/rust/issues/32311
-    // is stabilized.
-    fn contains_item(&self, item: &T) -> bool;
 }
 
 impl<T> RangeInclusiveExt<T> for RangeInclusive<T>
@@ -75,12 +63,6 @@ where
             other.end().add_one()
         };
         max(self.start(), other.start()) <= min(&longer_self_end, &longer_other_end)
-    }
-
-    // TODO: Remove once https://github.com/rust-lang/rust/issues/32311
-    // is stabilized.
-    fn contains_item(&self, item: &T) -> bool {
-        *item >= *self.start() && *item <= *self.end()
     }
 }
 

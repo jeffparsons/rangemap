@@ -56,10 +56,7 @@ where
             .filter(|(range_start_wrapper, _value)| {
                 // Does the only candidate range contain
                 // the requested key?
-                //
-                // TODO: Use `contains` once https://github.com/rust-lang/rust/issues/32311
-                // is stabilized.
-                range_start_wrapper.range.contains_item(key)
+                range_start_wrapper.range.contains(key)
             })
             .map(|(range_start_wrapper, value)| (&range_start_wrapper.range, value))
     }
