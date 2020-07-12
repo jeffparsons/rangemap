@@ -1,6 +1,5 @@
 use super::range_wrapper::RangeInclusiveStartWrapper;
 use crate::std_ext::*;
-use num::Bounded;
 use std::collections::BTreeMap;
 use std::ops::RangeInclusive;
 
@@ -17,7 +16,7 @@ pub struct RangeInclusiveMap<K, V> {
 
 impl<K, V> Default for RangeInclusiveMap<K, V>
 where
-    K: Ord + Clone,
+    K: Ord + Clone + StepLite,
     V: Eq + Clone,
 {
     fn default() -> Self {
@@ -27,7 +26,7 @@ where
 
 impl<K, V> RangeInclusiveMap<K, V>
 where
-    K: Ord + Clone,
+    K: Ord + Clone + StepLite,
     V: Eq + Clone,
 {
     /// Makes a new empty `RangeInclusiveMap`.
@@ -88,10 +87,7 @@ where
     /// # Panics
     ///
     /// Panics if range `start > end`.
-    pub fn insert(&mut self, range: RangeInclusive<K>, value: V)
-    where
-        K: StepLite + Bounded,
-    {
+    pub fn insert(&mut self, range: RangeInclusive<K>, value: V) {
         use std::ops::Bound;
 
         // Backwards ranges don't make sense.
@@ -146,38 +142,51 @@ where
         //
         // If there are any such stored ranges (that weren't already caught above),
         // their starts will fall somewhere after the start of the range to insert,
-        // and on, before, or _immediately after_ its end.
+        // and on, before, or _immediately after_ its end. To handle that last case
+        // without risking arithmetic overflow, we'll consider _one more_ stored item past
+        // the end of the end of the range to insert.
         //
         // REVISIT: Possible micro-optimisation: `impl Borrow<T> for RangeInclusiveStartWrapper<T>`
         // and use that to search here, to avoid constructing another `RangeInclusiveStartWrapper`.
-        //
-        // (One exception is if we're at the end of the key space.)
-        let last_possible_start = if *new_range_start_wrapper.range.end() == K::max_value() {
-            // Can't look beyond this, or we'd cause arithmetic overflow.
-            new_range_start_wrapper.range.end().clone()
-        } else {
-            // There exists key space beyond this value; the start of a
-            // range we're interested in could be immediately after
-            // the end of the range to insert.
-            new_range_start_wrapper.range.end().add_one()
-        };
-        let last_possible_start =
-            RangeInclusiveStartWrapper::new(last_possible_start.clone()..=last_possible_start);
+        let second_last_possible_start = new_range_start_wrapper.range.end().clone();
+        let second_last_possible_start = RangeInclusiveStartWrapper::new(
+            second_last_possible_start.clone()..=second_last_possible_start,
+        );
         while let Some((stored_range_start_wrapper, stored_value)) = self
             .btm
             .range((
                 Bound::Excluded(&new_range_start_wrapper),
-                Bound::Included(&last_possible_start),
+                // We would use something like `Bound::Included(&last_possible_start)`,
+                // but making `last_possible_start` might cause arithmetic overflow;
+                // instead decide inside the loop whether we've gone too far and break.
+                Bound::Unbounded,
             ))
             .next()
         {
-            // One extra exception: if we have different values,
-            // and the stored range starts immediately following the end of the range to insert,
-            // then we don't want to keep looping forever trying to find more!
-            if stored_range_start_wrapper.range.start() == last_possible_start.range.start()
-                && *stored_value != new_value
-            {
-                break;
+            // A couple of extra exceptions are needed at the
+            // end of the subset of stored ranges we want to consider,
+            // in part because we use `Bound::Unbounded` above.
+            // (See comments up there, and in the individual cases below.)
+            let stored_start = stored_range_start_wrapper.range.start();
+            if *stored_start > *second_last_possible_start.range.start() {
+                let latest_possible_start = second_last_possible_start.range.start().add_one();
+                if *stored_start > latest_possible_start {
+                    // We're beyond the last stored range that could be relevant.
+                    // Avoid wasting time on irrelevant ranges, or even worse, looping forever.
+                    // (`adjust_touching_ranges_for_insert` below assumes that the given range
+                    // is relevant, and behaves very poorly if it is handed a range that it
+                    // shouldn't be touching.)
+                    break;
+                }
+
+                if *stored_start == latest_possible_start && *stored_value != new_value {
+                    // We are looking at the last stored range that could be relevant,
+                    // but it has a different value, so we don't want to merge with it.
+                    // We must explicitly break here as well, because `adjust_touching_ranges_for_insert`
+                    // below assumes that the given range is relevant, and behaves very poorly if it
+                    // is handed a range that it shouldn't be touching.
+                    break;
+                }
             }
 
             let stored_range_start_wrapper = stored_range_start_wrapper.clone();
@@ -205,10 +214,7 @@ where
     /// # Panics
     ///
     /// Panics if range `start > end`.
-    pub fn remove(&mut self, range: RangeInclusive<K>)
-    where
-        K: StepLite,
-    {
+    pub fn remove(&mut self, range: RangeInclusive<K>) {
         use std::ops::Bound;
 
         // Backwards ranges don't make sense.
@@ -284,9 +290,7 @@ where
         stored_value: V,
         new_range: &mut RangeInclusive<K>,
         new_value: &V,
-    ) where
-        K: StepLite,
-    {
+    ) {
         use std::cmp::{max, min};
 
         if stored_value == *new_value {
@@ -340,9 +344,7 @@ where
         stored_range_start_wrapper: RangeInclusiveStartWrapper<K>,
         stored_value: V,
         range_to_remove: &RangeInclusive<K>,
-    ) where
-        K: StepLite,
-    {
+    ) {
         // Delete the stored range, and then add back between
         // 0 and 2 subranges at the ends of the range to insert.
         self.btm.remove(&stored_range_start_wrapper);
@@ -378,7 +380,7 @@ mod tests {
 
     impl<K, V> RangeInclusiveMapExt<K, V> for RangeInclusiveMap<K, V>
     where
-        K: Ord + Clone,
+        K: Ord + Clone + StepLite,
         V: Eq + Clone,
     {
         fn to_vec(&self) -> Vec<(RangeInclusive<K>, V)> {
@@ -665,5 +667,11 @@ mod tests {
         range_map.remove(250..=255);
         range_map.insert(0..=255, true);
         range_map.remove(1..=254);
+        range_map.insert(254..=254, true);
+        range_map.insert(255..=255, true);
+        range_map.insert(255..=255, false);
+        range_map.insert(0..=0, false);
+        range_map.insert(1..=1, true);
+        range_map.insert(0..=0, true);
     }
 }

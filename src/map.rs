@@ -159,6 +159,11 @@ where
             if stored_range_start_wrapper.range.start == new_range_start_wrapper.range.end
                 && *stored_value != new_value
             {
+                // We're beyond the last stored range that could be relevant.
+                // Avoid wasting time on irrelevant ranges, or even worse, looping forever.
+                // (`adjust_touching_ranges_for_insert` below assumes that the given range
+                // is relevant, and behaves very poorly if it is handed a range that it
+                // shouldn't be touching.)
                 break;
             }
 
