@@ -1,4 +1,3 @@
-use num::Bounded;
 use std::ops::{Range, RangeInclusive};
 
 pub trait RangeExt<T> {
@@ -27,14 +26,12 @@ where
 
 pub trait RangeInclusiveExt<T> {
     fn overlaps(&self, other: &Self) -> bool;
-    fn touches(&self, other: &Self) -> bool
-    where
-        T: StepLite + Bounded + Clone;
+    fn touches(&self, other: &Self) -> bool;
 }
 
 impl<T> RangeInclusiveExt<T> for RangeInclusive<T>
 where
-    T: Ord,
+    T: Ord + StepLite + Clone,
 {
     fn overlaps(&self, other: &Self) -> bool {
         use std::cmp::{max, min};
@@ -42,27 +39,26 @@ where
         max(self.start(), other.start()) <= min(self.end(), other.end())
     }
 
-    fn touches(&self, other: &Self) -> bool
-    where
-        T: StepLite + Bounded + Clone,
-    {
+    fn touches(&self, other: &Self) -> bool {
         use std::cmp::{max, min};
+
         // Touching for end-inclusive ranges is equivalent to touching of
         // slightly longer end-inclusive ranges.
         //
-        // We need to do this dance to avoid arithmetic overflow
-        // at the extremes of the key space.
-        let longer_self_end: T = if *self.end() == T::max_value() {
-            (*self.end()).clone()
+        // We need to do a small dance to avoid arithmetic overflow
+        // at the extremes of the key space. And to do this without
+        // needing to bound our key type on something like `num::Bounded`
+        // (https://docs.rs/num/0.3.0/num/trait.Bounded.html),
+        // we'll just extend the end of the _earlier_ range iff
+        // its end is already earlier than the latter range's start.
+        let max_start = max(self.start(), other.start());
+        let min_range_end = min(self.end(), other.end());
+        let min_range_end_extended = if min_range_end < max_start {
+            min_range_end.add_one()
         } else {
-            self.end().add_one()
+            min_range_end.clone()
         };
-        let longer_other_end: T = if *other.end() == T::max_value() {
-            other.end().clone()
-        } else {
-            other.end().add_one()
-        };
-        max(self.start(), other.start()) <= min(&longer_self_end, &longer_other_end)
+        *max_start <= min_range_end_extended
     }
 }
 
