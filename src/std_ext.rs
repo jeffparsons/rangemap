@@ -1,4 +1,4 @@
-use std::ops::{Range, RangeInclusive};
+use std::ops::{Add, Range, RangeInclusive, Sub};
 
 pub trait RangeExt<T> {
     fn overlaps(&self, other: &Self) -> bool;
@@ -26,12 +26,14 @@ where
 
 pub trait RangeInclusiveExt<T> {
     fn overlaps(&self, other: &Self) -> bool;
-    fn touches(&self, other: &Self) -> bool;
+    fn touches<StepFnsT>(&self, other: &Self) -> bool
+    where
+        StepFnsT: StepFns<T>;
 }
 
 impl<T> RangeInclusiveExt<T> for RangeInclusive<T>
 where
-    T: Ord + StepLite + Clone,
+    T: Ord + Clone,
 {
     fn overlaps(&self, other: &Self) -> bool {
         use std::cmp::{max, min};
@@ -39,7 +41,10 @@ where
         max(self.start(), other.start()) <= min(self.end(), other.end())
     }
 
-    fn touches(&self, other: &Self) -> bool {
+    fn touches<StepFnsT>(&self, other: &Self) -> bool
+    where
+        StepFnsT: StepFns<T>,
+    {
         use std::cmp::{max, min};
 
         // Touching for end-inclusive ranges is equivalent to touching of
@@ -54,7 +59,7 @@ where
         let max_start = max(self.start(), other.start());
         let min_range_end = min(self.end(), other.end());
         let min_range_end_extended = if min_range_end < max_start {
-            min_range_end.add_one()
+            StepFnsT::add_one(min_range_end)
         } else {
             min_range_end.clone()
         };
@@ -71,39 +76,79 @@ where
 /// I.e. we need a concept of successor values rather than just
 /// equality, and that is what [Step](std::iter::Step) will
 /// eventually provide once it is stabilized.
-//
-// TODO: Deprecate and then eventually remove once
-// https://github.com/rust-lang/rust/issues/42168 is stabilized.
+///
+/// **NOTE:** This will likely be deprecated and then eventually
+/// removed once the standard library's [Step](std::iter::Step)
+/// trait is stabilised, as most crates will then likely implement [Step](std::iter::Step)
+/// for their types where appropriate.
+///
+/// See [this issue](https://github.com/rust-lang/rust/issues/42168)
+/// for details about that stabilization process.
 pub trait StepLite {
+    /// Returns the _successor_ of `self`.
     fn add_one(&self) -> Self;
+    /// Returns the _predecessor_ of `self`.
     fn sub_one(&self) -> Self;
 }
 
-// Makes tests work.
-impl StepLite for u32 {
-    fn add_one(&self) -> Self {
-        self + 1
-    }
+// Implement for all common integer types.
+macro_rules! impl_step_lite {
+    ($($t:ty)*) => ($(
+        impl StepLite for $t {
+            #[inline]
+            fn add_one(&self) -> Self {
+                Add::add(*self, 1)
+            }
 
-    fn sub_one(&self) -> Self {
-        self - 1
-    }
+            #[inline]
+            fn sub_one(&self) -> Self {
+                Sub::sub(*self, 1)
+            }
+        }
+    )*)
 }
 
-impl StepLite for u8 {
-    fn add_one(&self) -> Self {
-        self + 1
-    }
-
-    fn sub_one(&self) -> Self {
-        self - 1
-    }
-}
-
-// TODO: Auto-implement for all common types?
-// But people will still need to implement it for
-// their own types, so need to find the least painful
-// way for consumers.
+impl_step_lite!(usize u8 u16 u32 u64 u128 i8 i16 i32 i64 i128);
 
 // TODO: When on nightly, a blanket implementation for
-// all types that implement `std::iter::Step`.
+// all types that implement `std::iter::Step` instead
+// of the auto-impl above.
+
+/// Successor and predecessor functions defined for `T`,
+/// but as free functions rather than methods on `T` itself.
+///
+/// This is useful as a workaround for Rust's "orphan rules",
+/// which prevent you from implementing `StepLite` for `T` if `T`
+/// is a foreign type.
+///
+/// **NOTE:** This will likely be deprecated and then eventually
+/// removed once the standard library's [Step](std::iter::Step)
+/// trait is stabilised, as most crates will then likely implement [Step](std::iter::Step)
+/// for their types where appropriate.
+///
+/// See [this issue](https://github.com/rust-lang/rust/issues/42168)
+/// for details about that stabilization process.
+///
+/// There is also a blanket implementation of `StepFns` for all
+/// types implementing `StepLite`. Consumers of this crate should
+/// prefer to implement `StepLite` for their own types, and only
+/// fall back to `StepFns` when dealing with foreign types.
+pub trait StepFns<T> {
+    /// Returns the _successor_ of value `start`.
+    fn add_one(start: &T) -> T;
+    /// Returns the _predecessor_ of value `start`.
+    fn sub_one(start: &T) -> T;
+}
+
+impl<T> StepFns<T> for T
+where
+    T: StepLite,
+{
+    fn add_one(start: &T) -> T {
+        start.add_one()
+    }
+
+    fn sub_one(start: &T) -> T {
+        start.sub_one()
+    }
+}

@@ -1,20 +1,35 @@
 use super::range_wrapper::RangeInclusiveStartWrapper;
 use crate::std_ext::*;
 use std::collections::BTreeMap;
+use std::marker::PhantomData;
 use std::ops::RangeInclusive;
 
-#[derive(Clone)]
-/// A map whose keys are stored as (closed) ranges.
+/// A map whose keys are stored as ranges bounded
+/// inclusively below and above `(start..=end)`.
 ///
 /// Contiguous and overlapping ranges that map to the same value
 /// are coalesced into a single range.
-pub struct RangeInclusiveMap<K, V> {
+///
+/// Successor and predecessor functions must be provided for
+/// the key type `K`, so that we can detect adjacent but non-overlapping
+/// (closed) ranges. (This is not a problem for half-open ranges,
+/// because adjacent ranges can be detected using equality of range ends alone.)
+///
+/// You can provide these functions either by implementing the
+/// [StepLite](crate::StepLite) trait for your key type `K`, or,
+/// if this is impossible because of Rust's "orphan rules",
+/// you can provide equivalent free functions using the `StepsFnsT` type parameter.
+/// [StepLite](crate::StepLite) is implemented for all standard integer types,
+/// but not for any third party crate types.
+#[derive(Clone)]
+pub struct RangeInclusiveMap<K, V, StepFnsT = K> {
     // Wrap ranges so that they are `Ord`.
     // See `range_wrapper.rs` for explanation.
     btm: BTreeMap<RangeInclusiveStartWrapper<K>, V>,
+    _phantom: PhantomData<StepFnsT>,
 }
 
-impl<K, V> Default for RangeInclusiveMap<K, V>
+impl<K, V> Default for RangeInclusiveMap<K, V, K>
 where
     K: Ord + Clone + StepLite,
     V: Eq + Clone,
@@ -24,15 +39,41 @@ where
     }
 }
 
-impl<K, V> RangeInclusiveMap<K, V>
+impl<K, V> RangeInclusiveMap<K, V, K>
 where
     K: Ord + Clone + StepLite,
     V: Eq + Clone,
 {
     /// Makes a new empty `RangeInclusiveMap`.
     pub fn new() -> Self {
-        RangeInclusiveMap {
+        Self::new_with_step_fns()
+    }
+}
+
+impl<K, V, StepFnsT> RangeInclusiveMap<K, V, StepFnsT>
+where
+    K: Ord + Clone,
+    V: Eq + Clone,
+    StepFnsT: StepFns<K>,
+{
+    /// Makes a new empty `RangeInclusiveMap`, specifying successor and
+    /// predecessor functions defined separately from `K` itself.
+    ///
+    /// This is useful as a workaround for Rust's "orphan rules",
+    /// which prevent you from implementing `StepLite` for `K` if `K`
+    /// is a foreign type.
+    ///
+    /// **NOTE:** This will likely be deprecated and then eventually
+    /// removed once the standard library's [Step](std::iter::Step)
+    /// trait is stabilised, as most crates will then likely implement [Step](std::iter::Step)
+    /// for their types where appropriate.
+    ///
+    /// See [this issue](https://github.com/rust-lang/rust/issues/42168)
+    /// for details about that stabilization process.
+    pub fn new_with_step_fns() -> Self {
+        Self {
             btm: BTreeMap::new(),
+            _phantom: PhantomData,
         }
     }
 
@@ -123,7 +164,7 @@ where
                 // range to insert and then some.)
                 stored_range_start_wrapper
                     .range
-                    .touches(&new_range_start_wrapper.range)
+                    .touches::<StepFnsT>(&new_range_start_wrapper.range)
             })
             .map(|(stored_range_start_wrapper, stored_value)| {
                 (stored_range_start_wrapper.clone(), stored_value.clone())
@@ -169,7 +210,8 @@ where
             // (See comments up there, and in the individual cases below.)
             let stored_start = stored_range_start_wrapper.range.start();
             if *stored_start > *second_last_possible_start.range.start() {
-                let latest_possible_start = second_last_possible_start.range.start().add_one();
+                let latest_possible_start =
+                    StepFnsT::add_one(second_last_possible_start.range.start());
                 if *stored_start > latest_possible_start {
                     // We're beyond the last stored range that could be relevant.
                     // Avoid wasting time on irrelevant ranges, or even worse, looping forever.
@@ -317,7 +359,7 @@ where
                     self.btm.insert(
                         RangeInclusiveStartWrapper::new(
                             stored_range_start_wrapper.range.start().clone()
-                                ..=new_range.start().sub_one(),
+                                ..=StepFnsT::sub_one(new_range.start()),
                         ),
                         stored_value.clone(),
                     );
@@ -326,7 +368,7 @@ where
                     // Insert the piece right of the range to insert.
                     self.btm.insert(
                         RangeInclusiveStartWrapper::new(
-                            new_range.end().add_one()
+                            StepFnsT::add_one(new_range.end())
                                 ..=stored_range_start_wrapper.range.end().clone(),
                         ),
                         stored_value,
@@ -353,7 +395,7 @@ where
             // Insert the piece left of the range to insert.
             self.btm.insert(
                 RangeInclusiveStartWrapper::new(
-                    stored_range.start().clone()..=range_to_remove.start().sub_one(),
+                    stored_range.start().clone()..=StepFnsT::sub_one(range_to_remove.start()),
                 ),
                 stored_value.clone(),
             );
@@ -362,7 +404,7 @@ where
             // Insert the piece right of the range to insert.
             self.btm.insert(
                 RangeInclusiveStartWrapper::new(
-                    range_to_remove.end().add_one()..=stored_range.end().clone(),
+                    StepFnsT::add_one(range_to_remove.end())..=stored_range.end().clone(),
                 ),
                 stored_value,
             );
@@ -378,7 +420,7 @@ mod tests {
         fn to_vec(&self) -> Vec<(RangeInclusive<K>, V)>;
     }
 
-    impl<K, V> RangeInclusiveMapExt<K, V> for RangeInclusiveMap<K, V>
+    impl<K, V> RangeInclusiveMapExt<K, V> for RangeInclusiveMap<K, V, K>
     where
         K: Ord + Clone + StepLite,
         V: Eq + Clone,

@@ -61,5 +61,5 @@ mod stupid_range_map;
 pub use inclusive_map::RangeInclusiveMap;
 pub use map::RangeMap;
 pub use set::RangeSet;
-pub use std_ext::StepLite;
+pub use std_ext::{StepFns, StepLite};
 // TODO: inclusive_set

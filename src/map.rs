@@ -3,11 +3,12 @@ use crate::std_ext::*;
 use std::collections::BTreeMap;
 use std::ops::Range;
 
-#[derive(Clone)]
-/// A map whose keys are stored as (half-open) ranges.
+/// A map whose keys are stored as (half-open) ranges bounded
+/// inclusively below and exclusively above `(start..end)`.
 ///
 /// Contiguous and overlapping ranges that map to the same value
 /// are coalesced into a single range.
+#[derive(Clone)]
 pub struct RangeMap<K, V> {
     // Wrap ranges so that they are `Ord`.
     // See `range_wrapper.rs` for explanation.

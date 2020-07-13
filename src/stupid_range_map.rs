@@ -61,7 +61,7 @@ impl<V> From<RangeInclusiveMap<u32, V>> for StupidU32RangeMap<V>
 where
     V: Eq + Clone,
 {
-    fn from(range_inclusive_map: RangeInclusiveMap<u32, V>) -> Self {
+    fn from(range_inclusive_map: RangeInclusiveMap<u32, V, u32>) -> Self {
         let mut stupid = Self::new();
         for (range, value) in range_inclusive_map.iter() {
             stupid.insert(range.clone(), value.clone());
