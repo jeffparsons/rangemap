@@ -67,19 +67,19 @@ where
     }
 }
 
-/// Minimal version of unstable [Step](std::iter::Step) trait
+/// Minimal version of unstable [`Step`](std::iter::Step) trait
 /// from the Rust standard library.
 ///
-/// This is needed for [RangeInclusiveMap](crate::RangeInclusiveMap)
+/// This is needed for [`RangeInclusiveMap`](crate::RangeInclusiveMap)
 /// because ranges stored as its keys interact with each other
 /// when the start of one is _adjacent_ the end of another.
 /// I.e. we need a concept of successor values rather than just
-/// equality, and that is what [Step](std::iter::Step) will
+/// equality, and that is what `Step` will
 /// eventually provide once it is stabilized.
 ///
 /// **NOTE:** This will likely be deprecated and then eventually
-/// removed once the standard library's [Step](std::iter::Step)
-/// trait is stabilised, as most crates will then likely implement [Step](std::iter::Step)
+/// removed once the standard library's `Step`
+/// trait is stabilised, as most crates will then likely implement `Step`
 /// for their types where appropriate.
 ///
 /// See [this issue](https://github.com/rust-lang/rust/issues/42168)
@@ -118,12 +118,12 @@ impl_step_lite!(usize u8 u16 u32 u64 u128 i8 i16 i32 i64 i128);
 /// but as free functions rather than methods on `T` itself.
 ///
 /// This is useful as a workaround for Rust's "orphan rules",
-/// which prevent you from implementing `StepLite` for `T` if `T`
+/// which prevent you from implementing [`StepLite`](crate::StepLite) for `T` if `T`
 /// is a foreign type.
 ///
 /// **NOTE:** This will likely be deprecated and then eventually
-/// removed once the standard library's [Step](std::iter::Step)
-/// trait is stabilised, as most crates will then likely implement [Step](std::iter::Step)
+/// removed once the standard library's [`Step`](std::iter::Step)
+/// trait is stabilised, as most crates will then likely implement `Step`
 /// for their types where appropriate.
 ///
 /// See [this issue](https://github.com/rust-lang/rust/issues/42168)
