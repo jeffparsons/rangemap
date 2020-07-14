@@ -16,10 +16,10 @@ use std::ops::RangeInclusive;
 /// because adjacent ranges can be detected using equality of range ends alone.)
 ///
 /// You can provide these functions either by implementing the
-/// [StepLite](crate::StepLite) trait for your key type `K`, or,
+/// [`StepLite`](crate::StepLite) trait for your key type `K`, or,
 /// if this is impossible because of Rust's "orphan rules",
 /// you can provide equivalent free functions using the `StepsFnsT` type parameter.
-/// [StepLite](crate::StepLite) is implemented for all standard integer types,
+/// [`StepLite`](crate::StepLite) is implemented for all standard integer types,
 /// but not for any third party crate types.
 #[derive(Clone)]
 pub struct RangeInclusiveMap<K, V, StepFnsT = K> {

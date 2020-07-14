@@ -6,10 +6,17 @@
 [![Build status](https://ci.appveyor.com/api/projects/status/github/jeffparsons/rangemap?svg=true)](https://ci.appveyor.com/project/jeffparsons/rangemap)
 [![Rust](https://img.shields.io/badge/rust-1.43%2B-blue.svg?maxAge=3600)](https://github.com/jeffparsons/rangemap) <!-- Don't forget to update the Travis config when bumping minimum Rust version. -->
 
+[`RangeMap`] and [`RangeInclusiveMap`] are map data structures whose keys
+are stored as ranges. Contiguous and overlapping ranges that map to the same
+value are coalesced into a single range.
 
-[RangeMap](https://docs.rs/rangemap/latest/rangemap/struct.RangeMap.html) is a map data structure whose keys are stored as ranges. Contiguous and overlapping ranges that map to the same value are coalesced into a single range.
+Corresponding [`RangeSet`] and [`RangeInclusiveSet`] structures are also provided.
 
-A corresponding [RangeSet](https://docs.rs/rangemap/latest/rangemap/struct.RangeSet.html) structure is also provided.
+[`RangeMap`]: https://docs.rs/rangemap/latest/rangemap/struct.RangeMap.html
+[`RangeInclusiveMap`]: https://docs.rs/rangemap/latest/rangemap/struct.RangeInclusiveMap.html
+[`RangeSet`]: https://docs.rs/rangemap/latest/rangemap/struct.RangeSet.html
+[`RangeInclusiveSet`]: https://docs.rs/rangemap/latest/rangemap/struct.RangeInclusiveSet.html
+
 
 ## Example: use with Chrono
 
