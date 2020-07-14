@@ -8,6 +8,10 @@ environment:
     - APPVEYOR_RUST_CHANNEL: stable
     - APPVEYOR_RUST_CHANNEL: nightly
 
+matrix:
+  allow_failures:
+    - APPVEYOR_RUST_CHANNEL: nightly
+
 install:
   # Install Rust, x86_64-pc-windows-msvc host
   - curl -sSf -o rustup-init.exe https://win.rustup.rs/

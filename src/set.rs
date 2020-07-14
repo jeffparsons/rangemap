@@ -3,7 +3,8 @@ use std::ops::Range;
 use crate::RangeMap;
 
 #[derive(Clone)]
-/// A set whose items are stored as ranges.
+/// A set whose items are stored as (half-open) ranges bounded
+/// inclusively below and exclusively above `(start..end)`.
 ///
 /// See [`RangeMap`]'s documentation for more details.
 ///
@@ -79,11 +80,11 @@ where
 mod tests {
     use super::*;
 
-    trait RangeMapExt<T> {
+    trait RangeSetExt<T> {
         fn to_vec(&self) -> Vec<Range<T>>;
     }
 
-    impl<T> RangeMapExt<T> for RangeSet<T>
+    impl<T> RangeSetExt<T> for RangeSet<T>
     where
         T: Ord + Clone,
     {
