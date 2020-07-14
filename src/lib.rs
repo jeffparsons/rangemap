@@ -26,8 +26,8 @@ If the choice is not obvious in your case, consider these differences:
   as it does in the case of `f64`, on the specific value of `K`)
   from the end of the earlier range. (See the last point below for more
   on this problem.)
-- If you need to be able to represent ranges that _include_ every
-  point in the key domain (e.g. every value of `u8`) then you will
+- If you need to represent ranges that _include_ the maximum
+  value in the key domain (e.g. `255u8`) then you will
   probably want to use `RangeInclusive`s like `128u8..=255u8`. Sometimes
   it may be possible to instead work around this by using a wider key
   type than the values you are actually trying to represent (`K=u16`
