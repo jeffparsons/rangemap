@@ -50,16 +50,16 @@ for (range, person) in roster.iter() {
 */
 
 mod inclusive_map;
+mod inclusive_set;
 mod map;
 mod range_wrapper;
 mod set;
-// TODO: set_inclusive
 mod std_ext;
 #[cfg(test)]
 mod stupid_range_map;
 
 pub use inclusive_map::RangeInclusiveMap;
+pub use inclusive_set::RangeInclusiveSet;
 pub use map::RangeMap;
 pub use set::RangeSet;
 pub use std_ext::{StepFns, StepLite};
-// TODO: inclusive_set
