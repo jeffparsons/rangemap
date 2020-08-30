@@ -18,7 +18,7 @@ use std::ops::RangeInclusive;
 /// You can provide these functions either by implementing the
 /// [`StepLite`](crate::StepLite) trait for your key type `K`, or,
 /// if this is impossible because of Rust's "orphan rules",
-/// you can provide equivalent free functions using the `StepsFnsT` type parameter.
+/// you can provide equivalent free functions using the `StepFnsT` type parameter.
 /// [`StepLite`](crate::StepLite) is implemented for all standard integer types,
 /// but not for any third party crate types.
 #[derive(Clone)]
