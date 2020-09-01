@@ -99,6 +99,44 @@ where
     pub fn remove(&mut self, range: RangeInclusive<T>) {
         self.rm.remove(range);
     }
+
+    /// Gets an iterator over all the maximally-sized ranges
+    /// contained in `outer_range` that are not covered by
+    /// any range stored in the set.
+    ///
+    /// The iterator element type is `RangeInclusive<T>`.
+    ///
+    /// NOTE: Calling `gaps` eagerly finds the first gap,
+    /// even if the iterator is never consumed.
+    pub fn gaps<'a>(&'a self, outer_range: &'a RangeInclusive<T>) -> Gaps<'a, T, StepFnsT> {
+        Gaps {
+            inner: self.rm.gaps(outer_range),
+        }
+    }
+}
+
+pub struct Gaps<'a, T, StepFnsT> {
+    inner: crate::inclusive_map::Gaps<'a, T, (), StepFnsT>,
+}
+
+// `Gaps` is always fused. (See definition of `next` below.)
+impl<'a, T, StepFnsT> std::iter::FusedIterator for Gaps<'a, T, StepFnsT>
+where
+    T: Ord + Clone,
+    StepFnsT: StepFns<T>,
+{
+}
+
+impl<'a, T, StepFnsT> Iterator for Gaps<'a, T, StepFnsT>
+where
+    T: Ord + Clone,
+    StepFnsT: StepFns<T>,
+{
+    type Item = RangeInclusive<T>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next()
+    }
 }
 
 #[cfg(test)]
@@ -137,5 +175,29 @@ mod tests {
         range_set.insert(0..=50);
         range_set.remove(25..=75);
         assert_eq!(range_set.to_vec(), vec![0..=24]);
+    }
+
+    #[test]
+    fn gaps_between_items_floating_inside_outer_range() {
+        let mut range_set: RangeInclusiveSet<u32> = RangeInclusiveSet::new();
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ◌ ◌ ●-● ◌ ◌ ◌
+        range_set.insert(5..=6);
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ●-● ◌ ◌ ◌ ◌ ◌ ◌
+        range_set.insert(2..=3);
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◆-------------◆ ◌
+        let outer_range = 1..=8;
+        let mut gaps = range_set.gaps(&outer_range);
+        // Should yield gaps at start, between items,
+        // and at end.
+        assert_eq!(gaps.next(), Some(1..=1));
+        assert_eq!(gaps.next(), Some(4..=4));
+        assert_eq!(gaps.next(), Some(7..=8));
+        assert_eq!(gaps.next(), None);
+        // Gaps iterator should be fused.
+        assert_eq!(gaps.next(), None);
+        assert_eq!(gaps.next(), None);
     }
 }

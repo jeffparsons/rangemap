@@ -74,6 +74,38 @@ where
     pub fn remove(&mut self, range: Range<T>) {
         self.rm.remove(range);
     }
+
+    /// Gets an iterator over all the maximally-sized ranges
+    /// contained in `outer_range` that are not covered by
+    /// any range stored in the set.
+    ///
+    /// The iterator element type is `Range<T>`.
+    ///
+    /// NOTE: Calling `gaps` eagerly finds the first gap,
+    /// even if the iterator is never consumed.
+    pub fn gaps<'a>(&'a self, outer_range: &'a Range<T>) -> Gaps<'a, T> {
+        Gaps {
+            inner: self.rm.gaps(outer_range),
+        }
+    }
+}
+
+pub struct Gaps<'a, T> {
+    inner: crate::map::Gaps<'a, T, ()>,
+}
+
+// `Gaps` is always fused. (See definition of `next` below.)
+impl<'a, T> std::iter::FusedIterator for Gaps<'a, T> where T: Ord + Clone {}
+
+impl<'a, T> Iterator for Gaps<'a, T>
+where
+    T: Ord + Clone,
+{
+    type Item = Range<T>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next()
+    }
 }
 
 #[cfg(test)]
@@ -112,5 +144,29 @@ mod tests {
         range_set.insert(0..50);
         range_set.remove(25..75);
         assert_eq!(range_set.to_vec(), vec![0..25]);
+    }
+
+    #[test]
+    fn gaps_between_items_floating_inside_outer_range() {
+        let mut range_set: RangeSet<u32> = RangeSet::new();
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ◌ ◌ ●-◌ ◌ ◌ ◌
+        range_set.insert(5..6);
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ●-◌ ◌ ◌ ◌ ◌ ◌
+        range_set.insert(3..4);
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◆-------------◇ ◌
+        let outer_range = 1..8;
+        let mut gaps = range_set.gaps(&outer_range);
+        // Should yield gaps at start, between items,
+        // and at end.
+        assert_eq!(gaps.next(), Some(1..3));
+        assert_eq!(gaps.next(), Some(4..5));
+        assert_eq!(gaps.next(), Some(6..8));
+        assert_eq!(gaps.next(), None);
+        // Gaps iterator should be fused.
+        assert_eq!(gaps.next(), None);
+        assert_eq!(gaps.next(), None);
     }
 }
