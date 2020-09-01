@@ -14,9 +14,10 @@ jobs:
     strategy:
       matrix:
         toolchain:
-          - stable
-          # TODO: Cross-reference to other places I have MSRV specified.
+          # Don't forget to update the README when bumping MSRV.
           - 1.43.0
+          - stable
+          - beta
         os:
           - ubuntu-latest
           - macos-latest
