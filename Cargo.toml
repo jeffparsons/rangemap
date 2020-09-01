@@ -19,14 +19,20 @@ build = "build.rs"
 [dependencies]
 
 [build-dependencies]
-skeptic = { version = "0.13", optional = true }
+# Upstream skeptic is broken on stable.
+# See <https://github.com/budziq/rust-skeptic/pull/121#issuecomment-668634236>
+# and linked issue.
+skeptic = { git = 'https://github.com/andygauge/rust-skeptic', optional = true }
 
 [dev-dependencies]
 permutator = "0.3"
 criterion = "0.2"
 rand = "0.6"
 chrono = "0.4" # For examples
-skeptic = "0.13"
+# Upstream skeptic is broken on stable.
+# See <https://github.com/budziq/rust-skeptic/pull/121#issuecomment-668634236>
+# and linked issue.
+skeptic = { git = 'https://github.com/andygauge/rust-skeptic'}
 
 [features]
 # Skeptic is only needed for doc generation.

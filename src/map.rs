@@ -333,6 +333,92 @@ where
             );
         }
     }
+
+    /// Gets an iterator over all the maximally-sized ranges
+    /// contained in `outer_range` that are not covered by
+    /// any range stored in the map.
+    ///
+    /// The iterator element type is `Range<K>`.
+    ///
+    /// NOTE: Calling `gaps` eagerly finds the first gap,
+    /// even if the iterator is never consumed.
+    pub fn gaps<'a>(&'a self, outer_range: &'a Range<K>) -> Gaps<'a, K, V> {
+        let mut keys = self.btm.keys().peekable();
+
+        // Find the first potential gap.
+        let mut candidate_start = &outer_range.start;
+        while let Some(item) = keys.peek() {
+            if item.range.end <= outer_range.start {
+                // This range sits entirely before the start of
+                // the outer range; just skip it.
+                let _ = keys.next();
+            } else if item.range.start <= outer_range.start {
+                // This range overlaps the start of the
+                // outer range, so the first possible candidate
+                // range begins at its end.
+                candidate_start = &item.range.end;
+                let _ = keys.next();
+            } else {
+                // The rest of the items might contribute to gaps.
+                break;
+            }
+        }
+
+        Gaps {
+            outer_range,
+            keys,
+            candidate_start,
+        }
+    }
+}
+
+pub struct Gaps<'a, K, V> {
+    outer_range: &'a Range<K>,
+    keys: std::iter::Peekable<std::collections::btree_map::Keys<'a, RangeStartWrapper<K>, V>>,
+    candidate_start: &'a K,
+}
+
+// `Gaps` is always fused. (See definition of `next` below.)
+impl<'a, K, V> std::iter::FusedIterator for Gaps<'a, K, V> where K: Ord + Clone {}
+
+impl<'a, K, V> Iterator for Gaps<'a, K, V>
+where
+    K: Ord + Clone,
+{
+    type Item = Range<K>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if *self.candidate_start >= self.outer_range.end {
+            // We've already passed the end of the outer range;
+            // there are no more gaps to find.
+            return None;
+        }
+
+        // Figure out where this gap ends.
+        let (end, next_candidate_start) = if let Some(item) = self.keys.next() {
+            if item.range.start < self.outer_range.end {
+                // The gap goes up until the start of the next item,
+                // and the next candidate starts after it.
+                (&item.range.start, &item.range.end)
+            } else {
+                // The item sits after the end of the outer range,
+                // so this gap ends at the end of the outer range.
+                // This also means there will be no more gaps.
+                (&self.outer_range.end, &self.outer_range.end)
+            }
+        } else {
+            // There's no next item; the end is at the
+            // end of the outer range.
+            // This also means there will be no more gaps.
+            (&self.outer_range.end, &self.outer_range.end)
+        };
+
+        // Move the next candidate gap start past the end
+        // of this gap, and yield the gap we found.
+        let gap = self.candidate_start.clone()..end.clone();
+        self.candidate_start = next_candidate_start;
+        Some(gap)
+    }
 }
 
 #[cfg(test)]
@@ -615,5 +701,269 @@ mod tests {
         range_map.insert(25..75, false);
         range_map.remove(0..100);
         assert_eq!(range_map.to_vec(), vec![]);
+    }
+
+    // Gaps tests
+
+    #[test]
+    fn whole_range_is_a_gap() {
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌
+        let range_map: RangeMap<u32, ()> = RangeMap::new();
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◆-------------◇ ◌
+        let outer_range = 1..8;
+        let mut gaps = range_map.gaps(&outer_range);
+        // Should yield the entire outer range.
+        assert_eq!(gaps.next(), Some(1..8));
+        assert_eq!(gaps.next(), None);
+        // Gaps iterator should be fused.
+        assert_eq!(gaps.next(), None);
+        assert_eq!(gaps.next(), None);
+    }
+
+    #[test]
+    fn whole_range_is_covered_exactly() {
+        let mut range_map: RangeMap<u32, ()> = RangeMap::new();
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ●---------◌ ◌ ◌ ◌
+        range_map.insert(1..6, ());
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◆---------◇ ◌ ◌ ◌
+        let outer_range = 1..6;
+        let mut gaps = range_map.gaps(&outer_range);
+        // Should yield no gaps.
+        assert_eq!(gaps.next(), None);
+        // Gaps iterator should be fused.
+        assert_eq!(gaps.next(), None);
+        assert_eq!(gaps.next(), None);
+    }
+
+    #[test]
+    fn item_before_outer_range() {
+        let mut range_map: RangeMap<u32, ()> = RangeMap::new();
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ●---◌ ◌ ◌ ◌ ◌ ◌ ◌
+        range_map.insert(1..3, ());
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ◌ ◌ ◆-----◇ ◌
+        let outer_range = 5..8;
+        let mut gaps = range_map.gaps(&outer_range);
+        // Should yield the entire outer range.
+        assert_eq!(gaps.next(), Some(5..8));
+        assert_eq!(gaps.next(), None);
+        // Gaps iterator should be fused.
+        assert_eq!(gaps.next(), None);
+        assert_eq!(gaps.next(), None);
+    }
+
+    #[test]
+    fn item_touching_start_of_outer_range() {
+        let mut range_map: RangeMap<u32, ()> = RangeMap::new();
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ●-------◌ ◌ ◌ ◌ ◌
+        range_map.insert(1..5, ());
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ◌ ◌ ◆-----◇ ◌
+        let outer_range = 5..8;
+        let mut gaps = range_map.gaps(&outer_range);
+        // Should yield the entire outer range.
+        assert_eq!(gaps.next(), Some(5..8));
+        assert_eq!(gaps.next(), None);
+        // Gaps iterator should be fused.
+        assert_eq!(gaps.next(), None);
+        assert_eq!(gaps.next(), None);
+    }
+
+    #[test]
+    fn item_overlapping_start_of_outer_range() {
+        let mut range_map: RangeMap<u32, ()> = RangeMap::new();
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ●---------◌ ◌ ◌ ◌
+        range_map.insert(1..6, ());
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ◌ ◌ ◆-----◇ ◌
+        let outer_range = 5..8;
+        let mut gaps = range_map.gaps(&outer_range);
+        // Should yield from the end of the stored item
+        // to the end of the outer range.
+        assert_eq!(gaps.next(), Some(6..8));
+        assert_eq!(gaps.next(), None);
+        // Gaps iterator should be fused.
+        assert_eq!(gaps.next(), None);
+        assert_eq!(gaps.next(), None);
+    }
+
+    #[test]
+    fn item_starting_at_start_of_outer_range() {
+        let mut range_map: RangeMap<u32, ()> = RangeMap::new();
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ◌ ◌ ●-◌ ◌ ◌ ◌
+        range_map.insert(5..6, ());
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ◌ ◌ ◆-----◇ ◌
+        let outer_range = 5..8;
+        let mut gaps = range_map.gaps(&outer_range);
+        // Should yield from the item onwards.
+        assert_eq!(gaps.next(), Some(6..8));
+        assert_eq!(gaps.next(), None);
+        // Gaps iterator should be fused.
+        assert_eq!(gaps.next(), None);
+        assert_eq!(gaps.next(), None);
+    }
+
+    #[test]
+    fn items_floating_inside_outer_range() {
+        let mut range_map: RangeMap<u32, ()> = RangeMap::new();
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ◌ ◌ ●-◌ ◌ ◌ ◌
+        range_map.insert(5..6, ());
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ●-◌ ◌ ◌ ◌ ◌ ◌
+        range_map.insert(3..4, ());
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◆-------------◇ ◌
+        let outer_range = 1..8;
+        let mut gaps = range_map.gaps(&outer_range);
+        // Should yield gaps at start, between items,
+        // and at end.
+        assert_eq!(gaps.next(), Some(1..3));
+        assert_eq!(gaps.next(), Some(4..5));
+        assert_eq!(gaps.next(), Some(6..8));
+        assert_eq!(gaps.next(), None);
+        // Gaps iterator should be fused.
+        assert_eq!(gaps.next(), None);
+        assert_eq!(gaps.next(), None);
+    }
+
+    #[test]
+    fn item_ending_at_end_of_outer_range() {
+        let mut range_map: RangeMap<u32, ()> = RangeMap::new();
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ◌ ◌ ◌ ◌ ●-◌ ◌
+        range_map.insert(7..8, ());
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ◌ ◌ ◆-----◇ ◌
+        let outer_range = 5..8;
+        let mut gaps = range_map.gaps(&outer_range);
+        // Should yield from the start of the outer range
+        // up to the start of the stored item.
+        assert_eq!(gaps.next(), Some(5..7));
+        assert_eq!(gaps.next(), None);
+        // Gaps iterator should be fused.
+        assert_eq!(gaps.next(), None);
+        assert_eq!(gaps.next(), None);
+    }
+
+    #[test]
+    fn item_overlapping_end_of_outer_range() {
+        let mut range_map: RangeMap<u32, ()> = RangeMap::new();
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ◌ ●---◌ ◌ ◌ ◌
+        range_map.insert(4..6, ());
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◆-----◇ ◌ ◌ ◌ ◌
+        let outer_range = 2..5;
+        let mut gaps = range_map.gaps(&outer_range);
+        // Should yield from the start of the outer range
+        // up to the start of the stored item.
+        assert_eq!(gaps.next(), Some(2..4));
+        assert_eq!(gaps.next(), None);
+        // Gaps iterator should be fused.
+        assert_eq!(gaps.next(), None);
+        assert_eq!(gaps.next(), None);
+    }
+
+    #[test]
+    fn item_touching_end_of_outer_range() {
+        let mut range_map: RangeMap<u32, ()> = RangeMap::new();
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ◌ ●-------◌ ◌
+        range_map.insert(4..8, ());
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◆-----◇ ◌ ◌ ◌ ◌ ◌
+        let outer_range = 1..4;
+        let mut gaps = range_map.gaps(&outer_range);
+        // Should yield the entire outer range.
+        assert_eq!(gaps.next(), Some(1..4));
+        assert_eq!(gaps.next(), None);
+        // Gaps iterator should be fused.
+        assert_eq!(gaps.next(), None);
+        assert_eq!(gaps.next(), None);
+    }
+
+    #[test]
+    fn item_after_outer_range() {
+        let mut range_map: RangeMap<u32, ()> = RangeMap::new();
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ◌ ◌ ◌ ●---◌ ◌
+        range_map.insert(6..7, ());
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◆-----◇ ◌ ◌ ◌ ◌ ◌
+        let outer_range = 1..4;
+        let mut gaps = range_map.gaps(&outer_range);
+        // Should yield the entire outer range.
+        assert_eq!(gaps.next(), Some(1..4));
+        assert_eq!(gaps.next(), None);
+        // Gaps iterator should be fused.
+        assert_eq!(gaps.next(), None);
+        assert_eq!(gaps.next(), None);
+    }
+
+    #[test]
+    fn empty_outer_range_with_items_away_from_both_sides() {
+        let mut range_map: RangeMap<u32, ()> = RangeMap::new();
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◆---◇ ◌ ◌ ◌ ◌ ◌ ◌
+        range_map.insert(1..3, ());
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ◌ ◌ ◆---◇ ◌ ◌
+        range_map.insert(5..7, ());
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ◌ ◆ ◌ ◌ ◌ ◌ ◌
+        let outer_range = 4..4;
+        let mut gaps = range_map.gaps(&outer_range);
+        // Should yield no gaps.
+        assert_eq!(gaps.next(), None);
+        // Gaps iterator should be fused.
+        assert_eq!(gaps.next(), None);
+        assert_eq!(gaps.next(), None);
+    }
+
+    #[test]
+    fn empty_outer_range_with_items_touching_both_sides() {
+        let mut range_map: RangeMap<u32, ()> = RangeMap::new();
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◆---◇ ◌ ◌ ◌ ◌ ◌ ◌
+        range_map.insert(2..4, ());
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ◌ ◆---◇ ◌ ◌ ◌
+        range_map.insert(4..6, ());
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ◌ ◆ ◌ ◌ ◌ ◌ ◌
+        let outer_range = 4..4;
+        let mut gaps = range_map.gaps(&outer_range);
+        // Should yield no gaps.
+        assert_eq!(gaps.next(), None);
+        // Gaps iterator should be fused.
+        assert_eq!(gaps.next(), None);
+        assert_eq!(gaps.next(), None);
+    }
+
+    #[test]
+    fn empty_outer_range_with_item_straddling() {
+        let mut range_map: RangeMap<u32, ()> = RangeMap::new();
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◆-----◇ ◌ ◌ ◌ ◌ ◌
+        range_map.insert(2..5, ());
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ◌ ◆ ◌ ◌ ◌ ◌ ◌
+        let outer_range = 4..4;
+        let mut gaps = range_map.gaps(&outer_range);
+        // Should yield no gaps.
+        assert_eq!(gaps.next(), None);
+        // Gaps iterator should be fused.
+        assert_eq!(gaps.next(), None);
+        assert_eq!(gaps.next(), None);
     }
 }
