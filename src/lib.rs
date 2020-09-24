@@ -1,3 +1,5 @@
+#![cfg_attr(feature = "nightly", feature(external_doc))]
+
 /*!
 [`RangeMap`] and [`RangeInclusiveMap`] are map data structures whose keys
 are stored as ranges. Contiguous and overlapping ranges that map to the same
@@ -109,3 +111,8 @@ pub use inclusive_set::RangeInclusiveSet;
 pub use map::RangeMap;
 pub use set::RangeSet;
 pub use std_ext::{StepFns, StepLite};
+
+// Doc tests for README.
+#[cfg(feature = "nightly")]
+#[doc(include = "../README.md")]
+struct _Readme {}

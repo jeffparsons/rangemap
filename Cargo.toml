@@ -9,37 +9,24 @@ repository = "https://github.com/jeffparsons/rangemap"
 documentation = "https://docs.rs/rangemap"
 homepage = "https://github.com/jeffparsons/rangemap"
 description = """
-Map data structure whose keys are stored as ranges.
+Map and set data structures whose keys are stored as ranges.
 
 Contiguous and overlapping ranges that map to the same value are coalesced into a single range.
 """
 categories = ["data-structures"]
-build = "build.rs"
 
 [dependencies]
-
-[build-dependencies]
-# Upstream skeptic is broken on stable.
-# See <https://github.com/budziq/rust-skeptic/pull/121#issuecomment-668634236>
-# and linked issue.
-skeptic = { git = 'https://github.com/andygauge/rust-skeptic', optional = true }
 
 [dev-dependencies]
 permutator = "0.3"
 criterion = "0.2"
 rand = "0.6"
 chrono = "0.4" # For examples
-# Upstream skeptic is broken on stable.
-# See <https://github.com/budziq/rust-skeptic/pull/121#issuecomment-668634236>
-# and linked issue.
-skeptic = { git = 'https://github.com/andygauge/rust-skeptic'}
+rustc_version = "0.2"
 
 [features]
-# Skeptic is only needed for doc generation.
-# Gate it on an optional-but-default feature
-# that people can disable if they don't want
-# to pull in skeptic and all of its dependencies.
-default = ["skeptic"]
+# So we can run doc tests from "README.md".
+nightly = []
 
 [[bench]]
 name = "kitchen_sink"

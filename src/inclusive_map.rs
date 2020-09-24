@@ -536,7 +536,7 @@ where
 
         // Move the next candidate gap start past the end
         // of this gap, and yield the gap we found.
-        let gap = self.candidate_start.clone()..=end.clone();
+        let gap = self.candidate_start.clone()..=end;
         self.candidate_start = next_candidate_start;
         Some(gap)
     }
