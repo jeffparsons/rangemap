@@ -8,7 +8,7 @@ use std::ops::Range;
 ///
 /// Contiguous and overlapping ranges that map to the same value
 /// are coalesced into a single range.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct RangeMap<K, V> {
     // Wrap ranges so that they are `Ord`.
     // See `range_wrapper.rs` for explanation.
@@ -372,6 +372,7 @@ where
     }
 }
 
+#[derive(Debug)]
 pub struct Gaps<'a, K, V> {
     outer_range: &'a Range<K>,
     keys: std::iter::Peekable<std::collections::btree_map::Keys<'a, RangeStartWrapper<K>, V>>,

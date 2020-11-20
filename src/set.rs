@@ -2,7 +2,7 @@ use std::ops::Range;
 
 use crate::RangeMap;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 /// A set whose items are stored as (half-open) ranges bounded
 /// inclusively below and exclusively above `(start..end)`.
 ///
@@ -90,6 +90,7 @@ where
     }
 }
 
+#[derive(Debug)]
 pub struct Gaps<'a, T> {
     inner: crate::map::Gaps<'a, T, ()>,
 }

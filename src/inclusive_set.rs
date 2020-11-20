@@ -3,7 +3,7 @@ use std::ops::RangeInclusive;
 use crate::std_ext::*;
 use crate::RangeInclusiveMap;
 
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 /// A set whose items are stored as ranges bounded
 /// inclusively below and above `(start..=end)`.
 ///
@@ -115,6 +115,7 @@ where
     }
 }
 
+#[derive(Debug)]
 pub struct Gaps<'a, T, StepFnsT> {
     inner: crate::inclusive_map::Gaps<'a, T, (), StepFnsT>,
 }

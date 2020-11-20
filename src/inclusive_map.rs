@@ -21,7 +21,7 @@ use std::ops::RangeInclusive;
 /// you can provide equivalent free functions using the `StepFnsT` type parameter.
 /// [`StepLite`](crate::StepLite) is implemented for all standard integer types,
 /// but not for any third party crate types.
-#[derive(Clone)]
+#[derive(Debug, Clone)]
 pub struct RangeInclusiveMap<K, V, StepFnsT = K> {
     // Wrap ranges so that they are `Ord`.
     // See `range_wrapper.rs` for explanation.
@@ -466,6 +466,7 @@ where
     }
 }
 
+#[derive(Debug)]
 pub struct Gaps<'a, K, V, StepFnsT> {
     /// Would be redundant, but we need an extra flag to
     /// avoid overflowing when dealing with inclusive ranges.
