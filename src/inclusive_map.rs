@@ -1,6 +1,7 @@
 use super::range_wrapper::RangeInclusiveStartWrapper;
 use crate::std_ext::*;
 use std::collections::BTreeMap;
+use std::fmt::{self, Debug};
 use std::marker::PhantomData;
 use std::ops::RangeInclusive;
 
@@ -463,6 +464,19 @@ where
             candidate_start,
             _phantom: PhantomData,
         }
+    }
+}
+
+// We can't just derive this automatically, because that would
+// expose irrelevant (and private) implementation details.
+// Instead implement it in the same way that the underlying BTreeMap does.
+impl<K: Debug, V: Debug> Debug for RangeInclusiveMap<K, V>
+where
+    K: Ord + Clone + StepLite,
+    V: Eq + Clone,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_map().entries(self.iter()).finish()
     }
 }
 
@@ -1136,5 +1150,26 @@ mod tests {
         range_map.insert(1..=254, false);
         range_map.gaps(&(0..=5));
         range_map.gaps(&(250..=255));
+    }
+
+    ///
+    /// impl Debug
+    ///
+
+    #[test]
+    fn map_debug_repr_looks_right() {
+        let mut map: RangeInclusiveMap<u32, ()> = RangeInclusiveMap::new();
+
+        // Empty
+        assert_eq!(format!("{:?}", map), "{}");
+
+        // One entry
+        map.insert(2..=5, ());
+        assert_eq!(format!("{:?}", map), "{2..=5: ()}");
+
+        // Many entries
+        map.insert(7..=8, ());
+        map.insert(10..=11, ());
+        assert_eq!(format!("{:?}", map), "{2..=5: (), 7..=8: (), 10..=11: ()}");
     }
 }

@@ -1,3 +1,4 @@
+use std::fmt::{self, Debug};
 use std::ops::RangeInclusive;
 
 use crate::std_ext::*;
@@ -115,6 +116,18 @@ where
     }
 }
 
+// We can't just derive this automatically, because that would
+// expose irrelevant (and private) implementation details.
+// Instead implement it in the same way that the underlying BTreeSet does.
+impl<T: Debug> Debug for RangeInclusiveSet<T>
+where
+    T: Ord + Clone + StepLite,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_set().entries(self.iter()).finish()
+    }
+}
+
 pub struct Gaps<'a, T, StepFnsT> {
     inner: crate::inclusive_map::Gaps<'a, T, (), StepFnsT>,
 }
@@ -199,5 +212,26 @@ mod tests {
         // Gaps iterator should be fused.
         assert_eq!(gaps.next(), None);
         assert_eq!(gaps.next(), None);
+    }
+
+    ///
+    /// impl Debug
+    ///
+
+    #[test]
+    fn set_debug_repr_looks_right() {
+        let mut set: RangeInclusiveSet<u32> = RangeInclusiveSet::new();
+
+        // Empty
+        assert_eq!(format!("{:?}", set), "{}");
+
+        // One entry
+        set.insert(2..=5);
+        assert_eq!(format!("{:?}", set), "{2..=5}");
+
+        // Many entries
+        set.insert(7..=8);
+        set.insert(10..=11);
+        assert_eq!(format!("{:?}", set), "{2..=5, 7..=8, 10..=11}");
     }
 }
