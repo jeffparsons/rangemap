@@ -3,6 +3,12 @@
 - ...
 
 
+### v0.1.8 (2020-11-22)
+
+- **Features**:
+    - Implement `Debug` for all map and set types.
+
+
 ### v0.1.7 (2020-09-07)
 
 - **Features**:
