@@ -1,6 +1,7 @@
 use super::range_wrapper::RangeStartWrapper;
 use crate::std_ext::*;
 use std::collections::BTreeMap;
+use std::fmt::{self, Debug};
 use std::ops::Range;
 
 /// A map whose keys are stored as (half-open) ranges bounded
@@ -369,6 +370,19 @@ where
             keys,
             candidate_start,
         }
+    }
+}
+
+// We can't just derive this automatically, because that would
+// expose irrelevant (and private) implementation details.
+// Instead implement it in the same way that the underlying BTreeMap does.
+impl<K: Debug, V: Debug> Debug for RangeMap<K, V>
+where
+    K: Ord + Clone,
+    V: Eq + Clone,
+{
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        f.debug_map().entries(self.iter()).finish()
     }
 }
 
@@ -965,5 +979,26 @@ mod tests {
         // Gaps iterator should be fused.
         assert_eq!(gaps.next(), None);
         assert_eq!(gaps.next(), None);
+    }
+
+    ///
+    /// impl Debug
+    ///
+
+    #[test]
+    fn map_debug_repr_looks_right() {
+        let mut map: RangeMap<u32, ()> = RangeMap::new();
+
+        // Empty
+        assert_eq!(format!("{:?}", map), "{}");
+
+        // One entry
+        map.insert(2..5, ());
+        assert_eq!(format!("{:?}", map), "{2..5: ()}");
+
+        // Many entries
+        map.insert(6..7, ());
+        map.insert(8..9, ());
+        assert_eq!(format!("{:?}", map), "{2..5: (), 6..7: (), 8..9: ()}");
     }
 }
