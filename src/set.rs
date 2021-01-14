@@ -10,7 +10,7 @@ use crate::RangeMap;
 /// See [`RangeMap`]'s documentation for more details.
 ///
 /// [`RangeMap`]: struct.RangeMap.html
-pub struct RangeSet<T> {
+pub struct RangeSet<T: Ord> {
     rm: RangeMap<T, ()>,
 }
 
@@ -103,7 +103,7 @@ where
     }
 }
 
-pub struct Gaps<'a, T> {
+pub struct Gaps<'a, T: Ord> {
     inner: crate::map::Gaps<'a, T, ()>,
 }
 

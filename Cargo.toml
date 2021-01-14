@@ -16,6 +16,7 @@ Contiguous and overlapping ranges that map to the same value are coalesced into 
 categories = ["data-structures"]
 
 [dependencies]
+serde = { version = "1", features = ["derive"] }
 
 [dev-dependencies]
 permutator = "0.3"

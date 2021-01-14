@@ -3,14 +3,15 @@ use crate::std_ext::*;
 use std::collections::BTreeMap;
 use std::fmt::{self, Debug};
 use std::ops::Range;
+use serde::{Serialize, Deserialize};
 
 /// A map whose keys are stored as (half-open) ranges bounded
 /// inclusively below and exclusively above `(start..end)`.
 ///
 /// Contiguous and overlapping ranges that map to the same value
 /// are coalesced into a single range.
-#[derive(Clone)]
-pub struct RangeMap<K, V> {
+#[derive(Clone, Serialize, Deserialize)]
+pub struct RangeMap<K: Ord, V> {
     // Wrap ranges so that they are `Ord`.
     // See `range_wrapper.rs` for explanation.
     btm: BTreeMap<RangeStartWrapper<K>, V>,
@@ -386,7 +387,7 @@ where
     }
 }
 
-pub struct Gaps<'a, K, V> {
+pub struct Gaps<'a, K: Ord, V> {
     outer_range: &'a Range<K>,
     keys: std::iter::Peekable<std::collections::btree_map::Keys<'a, RangeStartWrapper<K>, V>>,
     candidate_start: &'a K,

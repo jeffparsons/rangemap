@@ -12,12 +12,13 @@
 
 use std::cmp::Ordering;
 use std::ops::{Range, RangeInclusive};
+use serde::{Serialize, Deserialize};
 
 //
 // Range start wrapper
 //
 
-#[derive(Eq, Debug, Clone)]
+#[derive(Eq, Debug, Clone, Serialize, Deserialize)]
 pub struct RangeStartWrapper<T> {
     pub range: Range<T>,
 }
