@@ -2,6 +2,7 @@ use super::range_wrapper::RangeStartWrapper;
 use crate::std_ext::*;
 use alloc::collections::BTreeMap;
 use core::fmt::{self, Debug};
+use core::iter::FromIterator;
 use core::ops::Range;
 use core::prelude::v1::*;
 
@@ -412,6 +413,30 @@ where
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_map().entries(self.iter()).finish()
+    }
+}
+
+impl<K, V> FromIterator<(Range<K>, V)> for RangeMap<K, V>
+where
+    K: Ord + Clone,
+    V: Eq + Clone,
+{
+    fn from_iter<T: IntoIterator<Item = (Range<K>, V)>>(iter: T) -> Self {
+        let mut range_map = RangeMap::new();
+        range_map.extend(iter);
+        range_map
+    }
+}
+
+impl<K, V> Extend<(Range<K>, V)> for RangeMap<K, V>
+where
+    K: Ord + Clone,
+    V: Eq + Clone,
+{
+    fn extend<T: IntoIterator<Item = (Range<K>, V)>>(&mut self, iter: T) {
+        iter.into_iter().for_each(move |(k, v)| {
+            self.insert(k, v);
+        })
     }
 }
 
