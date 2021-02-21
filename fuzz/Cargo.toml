@@ -1,0 +1,33 @@
+
+[package]
+name = "rangemap-fuzz"
+version = "0.0.0"
+authors = ["Automatically generated"]
+publish = false
+edition = "2018"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.3"
+arbitrary = { version = "0.4.7", features = ["derive"] }
+
+[dependencies.rangemap]
+path = ".."
+
+# Prevent this from interfering with workspaces
+[workspace]
+members = ["."]
+
+[[bin]]
+name = "rangemap_coalesce"
+path = "fuzz_targets/rangemap_coalesce.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "rangemap_inclusive_coalesce"
+path = "fuzz_targets/rangemap_inclusive_coalesce.rs"
+test = false
+doc = false
