@@ -3,6 +3,12 @@
 - ...
 
 
+### v0.1.10 (2021-02-23)
+
+- **Fixes**:
+    - Fix performance regression introduced in v0.1.9, which made inserts extremely slow for large maps.
+
+
 ### v0.1.9 (2021-02-23)
 
 - **Fixes**:
