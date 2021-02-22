@@ -158,6 +158,8 @@ where
         let mut candidates = self
             .btm
             .range((Bound::Unbounded, Bound::Included(&new_range_start_wrapper)))
+            .rev()
+            .take(2)
             .filter(|(stored_range_start_wrapper, _stored_value)| {
                 // Does the candidate range either overlap
                 // or immediately precede the range to insert?
@@ -167,9 +169,9 @@ where
                     .range
                     .touches::<StepFnsT>(&new_range_start_wrapper.range)
             });
-        if let Some(mut candidate) = candidates.next_back() {
+        if let Some(mut candidate) = candidates.next() {
             // Or the one before it if both cases described above exist.
-            if let Some(another_candidate) = candidates.next_back() {
+            if let Some(another_candidate) = candidates.next() {
                 candidate = another_candidate;
             }
             let (stored_range_start_wrapper, stored_value) =
