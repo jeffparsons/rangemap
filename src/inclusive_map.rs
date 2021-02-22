@@ -153,24 +153,27 @@ where
         //
         // If there is any such stored range, it will be the last
         // whose start is less than or equal to _one less than_
-        // the start of the range to insert.
-        if let Some((stored_range_start_wrapper, stored_value)) = self
+        // the start of the range to insert, or the one before that
+        // if both of the above cases exist.
+        let mut candidates = self
             .btm
             .range((Bound::Unbounded, Bound::Included(&new_range_start_wrapper)))
-            .next_back()
             .filter(|(stored_range_start_wrapper, _stored_value)| {
-                // Does the only candidate range either overlap
+                // Does the candidate range either overlap
                 // or immediately precede the range to insert?
                 // (Remember that it might actually cover the _whole_
                 // range to insert and then some.)
                 stored_range_start_wrapper
                     .range
                     .touches::<StepFnsT>(&new_range_start_wrapper.range)
-            })
-            .map(|(stored_range_start_wrapper, stored_value)| {
-                (stored_range_start_wrapper.clone(), stored_value.clone())
-            })
-        {
+            });
+        if let Some(mut candidate) = candidates.next_back() {
+            // Or the one before it if both cases described above exist.
+            if let Some(another_candidate) = candidates.next_back() {
+                candidate = another_candidate;
+            }
+            let (stored_range_start_wrapper, stored_value) =
+                (candidate.0.clone(), candidate.1.clone());
             self.adjust_touching_ranges_for_insert(
                 stored_range_start_wrapper,
                 stored_value,
@@ -197,7 +200,7 @@ where
         while let Some((stored_range_start_wrapper, stored_value)) = self
             .btm
             .range((
-                Bound::Excluded(&new_range_start_wrapper),
+                Bound::Included(&new_range_start_wrapper),
                 // We would use something like `Bound::Included(&last_possible_start)`,
                 // but making `last_possible_start` might cause arithmetic overflow;
                 // instead decide inside the loop whether we've gone too far and break.
@@ -709,6 +712,23 @@ mod tests {
             range_map.to_vec(),
             vec![(1..=1, true), (2..=4, false), (5..=5, true)]
         );
+    }
+
+    #[test]
+    fn replace_at_end_of_existing_range_should_coalesce() {
+        let mut range_map: RangeInclusiveMap<u32, bool> = RangeInclusiveMap::new();
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ●---● ◌ ◌ ◌ ◌ ◌ ◌
+        range_map.insert(1..=3, false);
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ◌ ●---● ◌ ◌ ◌
+        range_map.insert(4..=6, true);
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ◌ ●---● ◌ ◌ ◌
+        range_map.insert(4..=6, false);
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ●---------● ◌ ◌ ◌
+        assert_eq!(range_map.to_vec(), vec![(1..=6, false)]);
     }
 
     #[test]
