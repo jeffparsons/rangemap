@@ -3,6 +3,12 @@
 - ...
 
 
+### v0.1.9 (2021-02-23)
+
+- **Fixes**:
+    - Fix coalescing of contiguous ranges. In some cases `RangeMap` and `RangeInclusiveMap` would leave two separate contiguous ranges with the same value instead of combining them into one.
+
+
 ### v0.1.8 (2020-11-22)
 
 - **Features**:

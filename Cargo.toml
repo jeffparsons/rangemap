@@ -1,6 +1,6 @@
 [package]
 name = "rangemap"
-version = "0.1.8"
+version = "0.1.9"
 authors = ["Jeff Parsons <jeff@parsons.io>"]
 edition = "2018"
 license = "MIT/Apache-2.0"
