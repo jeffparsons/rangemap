@@ -92,10 +92,13 @@ for (range, person) in roster.iter() {
 [`RangeInclusiveMap`]: crate::RangeInclusiveMap
 [`RangeSet`]: crate::RangeSet
 [`RangeInclusiveSet`]: crate::RangeInclusiveSet
-[`Range`]: std::ops::Range
-[`RangeInclusive`]: std::ops::RangeInclusive
+[`Range`]: core::ops::Range
+[`RangeInclusive`]: core::ops::RangeInclusive
 
 */
+
+#![no_std]
+extern crate alloc;
 
 mod inclusive_map;
 mod inclusive_set;

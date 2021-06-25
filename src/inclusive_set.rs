@@ -1,5 +1,5 @@
-use std::fmt::{self, Debug};
-use std::ops::RangeInclusive;
+use core::fmt::{self, Debug};
+use core::ops::RangeInclusive;
 
 use crate::std_ext::*;
 use crate::RangeInclusiveMap;
@@ -47,8 +47,8 @@ where
     /// is a foreign type.
     ///
     /// **NOTE:** This will likely be deprecated and then eventually
-    /// removed once the standard library's [Step](std::iter::Step)
-    /// trait is stabilised, as most crates will then likely implement [Step](std::iter::Step)
+    /// removed once the standard library's [Step](core::iter::Step)
+    /// trait is stabilised, as most crates will then likely implement [Step](core::iter::Step)
     /// for their types where appropriate.
     ///
     /// See [this issue](https://github.com/rust-lang/rust/issues/42168)
@@ -133,7 +133,7 @@ pub struct Gaps<'a, T, StepFnsT> {
 }
 
 // `Gaps` is always fused. (See definition of `next` below.)
-impl<'a, T, StepFnsT> std::iter::FusedIterator for Gaps<'a, T, StepFnsT>
+impl<'a, T, StepFnsT> core::iter::FusedIterator for Gaps<'a, T, StepFnsT>
 where
     T: Ord + Clone,
     StepFnsT: StepFns<T>,
@@ -155,6 +155,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use alloc::{format, vec, vec::Vec};
 
     trait RangeInclusiveSetExt<T> {
         fn to_vec(&self) -> Vec<RangeInclusive<T>>;

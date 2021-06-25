@@ -1,5 +1,5 @@
-use std::collections::BTreeMap;
-use std::ops::RangeInclusive;
+use alloc::collections::BTreeMap;
+use core::ops::RangeInclusive;
 
 use super::{RangeInclusiveMap, RangeMap};
 
