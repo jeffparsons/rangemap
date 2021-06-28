@@ -1,9 +1,10 @@
 use super::range_wrapper::RangeInclusiveStartWrapper;
 use crate::std_ext::*;
-use std::collections::BTreeMap;
-use std::fmt::{self, Debug};
-use std::marker::PhantomData;
-use std::ops::RangeInclusive;
+use alloc::collections::BTreeMap;
+use core::fmt::{self, Debug};
+use core::marker::PhantomData;
+use core::ops::RangeInclusive;
+use core::prelude::v1::*;
 
 /// A map whose keys are stored as ranges bounded
 /// inclusively below and above `(start..=end)`.
@@ -65,8 +66,8 @@ where
     /// is a foreign type.
     ///
     /// **NOTE:** This will likely be deprecated and then eventually
-    /// removed once the standard library's [Step](std::iter::Step)
-    /// trait is stabilised, as most crates will then likely implement [Step](std::iter::Step)
+    /// removed once the standard library's [Step](core::iter::Step)
+    /// trait is stabilised, as most crates will then likely implement [Step](core::iter::Step)
     /// for their types where appropriate.
     ///
     /// See [this issue](https://github.com/rust-lang/rust/issues/42168)
@@ -87,7 +88,7 @@ where
     /// Returns the range-value pair (as a pair of references) corresponding
     /// to the given key, if the key is covered by any range in the map.
     pub fn get_key_value(&self, key: &K) -> Option<(&RangeInclusive<K>, &V)> {
-        use std::ops::Bound;
+        use core::ops::Bound;
 
         // The only stored range that could contain the given key is the
         // last stored range whose start is less than or equal to this key.
@@ -130,7 +131,7 @@ where
     ///
     /// Panics if range `start > end`.
     pub fn insert(&mut self, range: RangeInclusive<K>, value: V) {
-        use std::ops::Bound;
+        use core::ops::Bound;
 
         // Backwards ranges don't make sense.
         // `RangeInclusive` doesn't enforce this,
@@ -263,7 +264,7 @@ where
     ///
     /// Panics if range `start > end`.
     pub fn remove(&mut self, range: RangeInclusive<K>) {
-        use std::ops::Bound;
+        use core::ops::Bound;
 
         // Backwards ranges don't make sense.
         // `RangeInclusive` doesn't enforce this,
@@ -339,7 +340,7 @@ where
         new_range: &mut RangeInclusive<K>,
         new_value: &V,
     ) {
-        use std::cmp::{max, min};
+        use core::cmp::{max, min};
 
         if stored_value == *new_value {
             // The ranges have the same value, so we can "adopt"
@@ -492,15 +493,15 @@ pub struct Gaps<'a, K, V, StepFnsT> {
     /// All other things here are ignored if `done` is `true`.
     done: bool,
     outer_range: &'a RangeInclusive<K>,
-    keys: std::iter::Peekable<
-        std::collections::btree_map::Keys<'a, RangeInclusiveStartWrapper<K>, V>,
+    keys: core::iter::Peekable<
+        alloc::collections::btree_map::Keys<'a, RangeInclusiveStartWrapper<K>, V>,
     >,
     candidate_start: K,
     _phantom: PhantomData<StepFnsT>,
 }
 
 // `Gaps` is always fused. (See definition of `next` below.)
-impl<'a, K, V, StepFnsT> std::iter::FusedIterator for Gaps<'a, K, V, StepFnsT>
+impl<'a, K, V, StepFnsT> core::iter::FusedIterator for Gaps<'a, K, V, StepFnsT>
 where
     K: Ord + Clone,
     StepFnsT: StepFns<K>,
@@ -564,6 +565,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use alloc::{format, vec, vec::Vec};
 
     trait RangeInclusiveMapExt<K, V> {
         fn to_vec(&self) -> Vec<(RangeInclusive<K>, V)>;

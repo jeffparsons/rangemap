@@ -1,8 +1,9 @@
 use super::range_wrapper::RangeStartWrapper;
 use crate::std_ext::*;
-use std::collections::BTreeMap;
-use std::fmt::{self, Debug};
-use std::ops::Range;
+use alloc::collections::BTreeMap;
+use core::fmt::{self, Debug};
+use core::ops::Range;
+use core::prelude::v1::*;
 
 /// A map whose keys are stored as (half-open) ranges bounded
 /// inclusively below and exclusively above `(start..end)`.
@@ -47,7 +48,7 @@ where
     /// Returns the range-value pair (as a pair of references) corresponding
     /// to the given key, if the key is covered by any range in the map.
     pub fn get_key_value(&self, key: &K) -> Option<(&Range<K>, &V)> {
-        use std::ops::Bound;
+        use core::ops::Bound;
 
         // The only stored range that could contain the given key is the
         // last stored range whose start is less than or equal to this key.
@@ -90,7 +91,7 @@ where
     ///
     /// Panics if range `start >= end`.
     pub fn insert(&mut self, range: Range<K>, value: V) {
-        use std::ops::Bound;
+        use core::ops::Bound;
 
         // We don't want to have to make empty ranges make sense;
         // they don't represent anything meaningful in this structure.
@@ -200,7 +201,7 @@ where
     ///
     /// Panics if range `start >= end`.
     pub fn remove(&mut self, range: Range<K>) {
-        use std::ops::Bound;
+        use core::ops::Bound;
 
         // We don't want to have to make empty ranges make sense;
         // they don't represent anything meaningful in this structure.
@@ -269,7 +270,7 @@ where
         new_range: &mut Range<K>,
         new_value: &V,
     ) {
-        use std::cmp::{max, min};
+        use core::cmp::{max, min};
 
         if stored_value == *new_value {
             // The ranges have the same value, so we can "adopt"
@@ -393,12 +394,12 @@ where
 
 pub struct Gaps<'a, K, V> {
     outer_range: &'a Range<K>,
-    keys: std::iter::Peekable<std::collections::btree_map::Keys<'a, RangeStartWrapper<K>, V>>,
+    keys: core::iter::Peekable<alloc::collections::btree_map::Keys<'a, RangeStartWrapper<K>, V>>,
     candidate_start: &'a K,
 }
 
 // `Gaps` is always fused. (See definition of `next` below.)
-impl<'a, K, V> std::iter::FusedIterator for Gaps<'a, K, V> where K: Ord + Clone {}
+impl<'a, K, V> core::iter::FusedIterator for Gaps<'a, K, V> where K: Ord + Clone {}
 
 impl<'a, K, V> Iterator for Gaps<'a, K, V>
 where
@@ -443,6 +444,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use alloc::{format, vec, vec::Vec};
 
     trait RangeMapExt<K, V> {
         fn to_vec(&self) -> Vec<(Range<K>, V)>;

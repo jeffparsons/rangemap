@@ -10,8 +10,8 @@
 // if you really do want to compare equality of the
 // inner range!
 
-use std::cmp::Ordering;
-use std::ops::{Range, RangeInclusive};
+use core::cmp::Ordering;
+use core::ops::{Range, RangeInclusive};
 
 //
 // Range start wrapper

@@ -1,4 +1,4 @@
-use std::ops::{Add, Range, RangeInclusive, Sub};
+use core::ops::{Add, Range, RangeInclusive, Sub};
 
 pub trait RangeExt<T> {
     fn overlaps(&self, other: &Self) -> bool;
@@ -10,13 +10,13 @@ where
     T: Ord,
 {
     fn overlaps(&self, other: &Self) -> bool {
-        use std::cmp::{max, min};
+        use core::cmp::{max, min};
         // Strictly less than, because ends are excluded.
         max(&self.start, &other.start) < min(&self.end, &other.end)
     }
 
     fn touches(&self, other: &Self) -> bool {
-        use std::cmp::{max, min};
+        use core::cmp::{max, min};
         // Less-than-or-equal-to because if one end is excluded, the other is included.
         // I.e. the two could be joined into a single range, because they're overlapping
         // or immediately adjacent.
@@ -36,7 +36,7 @@ where
     T: Ord + Clone,
 {
     fn overlaps(&self, other: &Self) -> bool {
-        use std::cmp::{max, min};
+        use core::cmp::{max, min};
         // Less than or equal, because ends are included.
         max(self.start(), other.start()) <= min(self.end(), other.end())
     }
@@ -45,7 +45,7 @@ where
     where
         StepFnsT: StepFns<T>,
     {
-        use std::cmp::{max, min};
+        use core::cmp::{max, min};
 
         // Touching for end-inclusive ranges is equivalent to touching of
         // slightly longer end-inclusive ranges.
@@ -67,7 +67,7 @@ where
     }
 }
 
-/// Minimal version of unstable [`Step`](std::iter::Step) trait
+/// Minimal version of unstable [`Step`](core::iter::Step) trait
 /// from the Rust standard library.
 ///
 /// This is needed for [`RangeInclusiveMap`](crate::RangeInclusiveMap)
@@ -111,7 +111,7 @@ macro_rules! impl_step_lite {
 impl_step_lite!(usize u8 u16 u32 u64 u128 i8 i16 i32 i64 i128);
 
 // TODO: When on nightly, a blanket implementation for
-// all types that implement `std::iter::Step` instead
+// all types that implement `core::iter::Step` instead
 // of the auto-impl above.
 
 /// Successor and predecessor functions defined for `T`,
@@ -122,7 +122,7 @@ impl_step_lite!(usize u8 u16 u32 u64 u128 i8 i16 i32 i64 i128);
 /// is a foreign type.
 ///
 /// **NOTE:** This will likely be deprecated and then eventually
-/// removed once the standard library's [`Step`](std::iter::Step)
+/// removed once the standard library's [`Step`](core::iter::Step)
 /// trait is stabilised, as most crates will then likely implement `Step`
 /// for their types where appropriate.
 ///

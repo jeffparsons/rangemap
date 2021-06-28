@@ -1,5 +1,6 @@
-use std::fmt::{self, Debug};
-use std::ops::Range;
+use core::fmt::{self, Debug};
+use core::ops::Range;
+use core::prelude::v1::*;
 
 use crate::RangeMap;
 
@@ -108,7 +109,7 @@ pub struct Gaps<'a, T> {
 }
 
 // `Gaps` is always fused. (See definition of `next` below.)
-impl<'a, T> std::iter::FusedIterator for Gaps<'a, T> where T: Ord + Clone {}
+impl<'a, T> core::iter::FusedIterator for Gaps<'a, T> where T: Ord + Clone {}
 
 impl<'a, T> Iterator for Gaps<'a, T>
 where
@@ -124,6 +125,7 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use alloc::{format, vec, vec::Vec};
 
     trait RangeSetExt<T> {
         fn to_vec(&self) -> Vec<Range<T>>;
