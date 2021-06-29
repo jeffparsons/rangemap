@@ -1,6 +1,7 @@
 ### Unreleased
 
-- ...
+- **Features**:
+    - Support `no_std` environments.
 
 
 ### v0.1.10 (2021-02-23)

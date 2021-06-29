@@ -50,14 +50,6 @@ If the choice is not obvious in your case, consider these differences:
   more straightforward.
 
 
-[`RangeMap`]: https://docs.rs/rangemap/latest/rangemap/struct.RangeMap.html
-[`RangeInclusiveMap`]: https://docs.rs/rangemap/latest/rangemap/struct.RangeInclusiveMap.html
-[`RangeSet`]: https://docs.rs/rangemap/latest/rangemap/struct.RangeSet.html
-[`RangeInclusiveSet`]: https://docs.rs/rangemap/latest/rangemap/struct.RangeInclusiveSet.html
-[`Range`]: https://doc.rust-lang.org/stable/std/ops/struct.Range.html
-[`RangeInclusive`]: https://doc.rust-lang.org/stable/std/ops/struct.RangeInclusive.html
-
-
 ## Example: use with Chrono
 
 ```rust
@@ -100,3 +92,28 @@ fn main() {
     // 2019-03-04UTC (P7D): Carol
 }
 ```
+
+
+## Building without the Rust standard library
+
+This crate can work without the full standard library available
+(e.g. when running on bare metal without an operating system)
+but relies on the presence of a global allocator &mdash;
+i.e. it links the `core` and `alloc` crates, but not `std`.
+
+Presently there is no functionality in the crate that require
+the standard library. Such functionality will likely be
+introduced in the future, and will be gated behind a default-on
+`std` feature.
+
+See [The Rust Programming Language](https://doc.rust-lang.org/1.7.0/book/no-stdlib.html)
+for general information about operating without the standard library.
+
+
+
+[`RangeMap`]: https://docs.rs/rangemap/latest/rangemap/struct.RangeMap.html
+[`RangeInclusiveMap`]: https://docs.rs/rangemap/latest/rangemap/struct.RangeInclusiveMap.html
+[`RangeSet`]: https://docs.rs/rangemap/latest/rangemap/struct.RangeSet.html
+[`RangeInclusiveSet`]: https://docs.rs/rangemap/latest/rangemap/struct.RangeInclusiveSet.html
+[`Range`]: https://doc.rust-lang.org/stable/std/ops/struct.Range.html
+[`RangeInclusive`]: https://doc.rust-lang.org/stable/std/ops/struct.RangeInclusive.html

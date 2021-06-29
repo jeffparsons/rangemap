@@ -88,6 +88,23 @@ for (range, person) in roster.iter() {
 ```
 
 
+## Building without the Rust standard library
+
+This crate can work without the full standard library available
+(e.g. when running on bare metal without an operating system)
+but relies on the presence of a global allocator &mdash;
+i.e. it links the `core` and `alloc` crates, but not `std`.
+
+Presently there is no functionality in the crate that require
+the standard library. Such functionality will likely be
+introduced in the future, and will be gated behind a default-on
+`std` feature.
+
+See [The Rust Programming Language](https://doc.rust-lang.org/1.7.0/book/no-stdlib.html)
+for general information about operating without the standard library.
+
+
+
 [`RangeMap`]: crate::RangeMap
 [`RangeInclusiveMap`]: crate::RangeInclusiveMap
 [`RangeSet`]: crate::RangeSet
