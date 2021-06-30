@@ -132,5 +132,4 @@ pub use std_ext::{StepFns, StepLite};
 
 // Doc tests for README.
 #[cfg(feature = "nightly")]
-#[doc = include_str!("../README.md")]
-struct _Readme {}
+mod readme;
