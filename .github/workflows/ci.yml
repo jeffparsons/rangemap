@@ -18,6 +18,7 @@ jobs:
           - 1.43.0
           - stable
           - beta
+          - nightly
         os:
           - ubuntu-latest
           - macos-latest
@@ -31,7 +32,14 @@ jobs:
             toolchain: ${{ matrix.toolchain }}
             default: true
             profile: minimal
-      - name: test
+      - name: stable test
         uses: actions-rs/cargo@v1
+        if: matrix.rust == 'stable'
         with:
           command: test
+      - name: nightly test
+        uses: actions-rs/cargo@v1
+        if: matrix.rust == 'nightly'
+        with:
+          command: test
+          args: --features nightly
