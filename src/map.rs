@@ -164,6 +164,7 @@ where
             // One extra exception: if we have different values,
             // and the stored range starts at the end of the range to insert,
             // then we don't want to keep looping forever trying to find more!
+            #[allow(clippy::suspicious_operation_groupings)]
             if stored_range_start_wrapper.range.start == new_range_start_wrapper.range.end
                 && *stored_value != new_value
             {
