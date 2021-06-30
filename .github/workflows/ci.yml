@@ -34,12 +34,12 @@ jobs:
             profile: minimal
       - name: stable test
         uses: actions-rs/cargo@v1
-        if: matrix.rust == 'stable'
+        if: matrix.toolchain == 'stable'
         with:
           command: test
       - name: nightly test
         uses: actions-rs/cargo@v1
-        if: matrix.rust == 'nightly'
+        if: matrix.toolchain == 'nightly'
         with:
           command: test
           args: --features nightly
