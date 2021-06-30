@@ -99,7 +99,7 @@ introduced in the future, and will be gated behind a default-on
 `std` feature.
 
 See [The Rust Programming Language](https://doc.rust-lang.org/1.7.0/book/no-stdlib.html)
-for general information about operating without the standard library.
+book for general information about operating without the standard library.
 
 
 
