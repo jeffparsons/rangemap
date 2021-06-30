@@ -2,7 +2,8 @@
 
 - **Features**:
     - Support `no_std` environments.
-
+- **Changes**:
+    - Update all dev-dependencies to latest versions.
 
 ### v0.1.10 (2021-02-23)
 

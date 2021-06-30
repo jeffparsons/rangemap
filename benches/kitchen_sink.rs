@@ -26,8 +26,8 @@ fn criterion_benchmark(c: &mut Criterion) {
         let mut rng = thread_rng();
         let kvs: Vec<(Range<i32>, bool)> = (0..1000)
             .map(|_| {
-                let start = rng.gen_range(0, 1000);
-                let end = start + rng.gen_range(1, 100);
+                let start = rng.gen_range(0..1000);
+                let end = start + rng.gen_range(1..100);
                 let value: bool = random();
                 (start..end, value)
             })

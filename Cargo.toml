@@ -18,11 +18,11 @@ categories = ["data-structures"]
 [dependencies]
 
 [dev-dependencies]
-permutator = "0.3"
-criterion = "0.2"
-rand = "0.6"
+permutator = "0.4"
+criterion = "0.3"
+rand = "0.8"
 chrono = "0.4" # For examples
-rustc_version = "0.2"
+rustc_version = "0.4"
 
 [features]
 # So we can run doc tests from "README.md".
