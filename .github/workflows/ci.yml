@@ -34,7 +34,7 @@ jobs:
             profile: minimal
       - name: stable test
         uses: actions-rs/cargo@v1
-        if: matrix.toolchain == 'stable'
+        if: matrix.toolchain != 'nightly'
         with:
           command: test
       - name: nightly test
