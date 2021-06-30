@@ -1,4 +1,4 @@
-### Unreleased
+### v0.1.11 (2021-06-30) "EOFY edition"
 
 - **Features**:
     - Support `no_std` environments.
