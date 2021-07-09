@@ -473,6 +473,28 @@ where
     }
 }
 
+pub struct IntoIter<K, V> {
+    inner: alloc::collections::btree_map::IntoIter<RangeInclusiveStartWrapper<K>, V>,
+}
+impl<K, V> IntoIterator for RangeInclusiveMap<K, V> {
+    type Item = (RangeInclusive<K>, V);
+    type IntoIter = IntoIter<K, V>;
+    fn into_iter(self) -> Self::IntoIter {
+        IntoIter {
+            inner: self.btm.into_iter(),
+        }
+    }
+}
+impl<K, V> Iterator for IntoIter<K, V> {
+    type Item = (RangeInclusive<K>, V);
+    fn next(&mut self) -> Option<(RangeInclusive<K>, V)> {
+        self.inner.next().map(|(by_start, v)| (by_start.range, v))
+    }
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
+    }
+}
+
 // We can't just derive this automatically, because that would
 // expose irrelevant (and private) implementation details.
 // Instead implement it in the same way that the underlying BTreeMap does.

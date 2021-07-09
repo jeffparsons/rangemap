@@ -380,6 +380,28 @@ where
     }
 }
 
+pub struct IntoIter<K, V> {
+    inner: alloc::collections::btree_map::IntoIter<RangeStartWrapper<K>, V>,
+}
+impl<K, V> IntoIterator for RangeMap<K, V> {
+    type Item = (Range<K>, V);
+    type IntoIter = IntoIter<K, V>;
+    fn into_iter(self) -> Self::IntoIter {
+        IntoIter {
+            inner: self.btm.into_iter(),
+        }
+    }
+}
+impl<K, V> Iterator for IntoIter<K, V> {
+    type Item = (Range<K>, V);
+    fn next(&mut self) -> Option<(Range<K>, V)> {
+        self.inner.next().map(|(by_start, v)| (by_start.range, v))
+    }
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
+    }
+}
+
 // We can't just derive this automatically, because that would
 // expose irrelevant (and private) implementation details.
 // Instead implement it in the same way that the underlying BTreeMap does.
@@ -1025,5 +1047,24 @@ mod tests {
         map.insert(6..7, ());
         map.insert(8..9, ());
         assert_eq!(format!("{:?}", map), "{2..5: (), 6..7: (), 8..9: ()}");
+    }
+
+    // Iterator Tests
+
+    #[test]
+    fn into_iter_matches_iter() {
+        // Just use vec since that's the same implementation we'd expect
+        let mut range_map: RangeMap<u32, bool> = RangeMap::new();
+        range_map.insert(1..3, false);
+        range_map.insert(3..5, true);
+
+        let cloned = range_map.to_vec();
+        let consumed = range_map.into_iter().collect::<Vec<_>>();
+
+        // Correct value
+        assert_eq!(cloned, vec![(1..3, false), (3..5, true)]);
+
+        // Equality
+        assert_eq!(cloned, consumed);
     }
 }

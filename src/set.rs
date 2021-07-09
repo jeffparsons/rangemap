@@ -92,6 +92,28 @@ where
     }
 }
 
+pub struct IntoIter<T> {
+    inner: super::map::IntoIter<T, ()>,
+}
+impl<T> IntoIterator for RangeSet<T> {
+    type Item = Range<T>;
+    type IntoIter = IntoIter<T>;
+    fn into_iter(self) -> Self::IntoIter {
+        IntoIter {
+            inner: self.rm.into_iter(),
+        }
+    }
+}
+impl<T> Iterator for IntoIter<T> {
+    type Item = Range<T>;
+    fn next(&mut self) -> Option<Range<T>> {
+        self.inner.next().map(|(range, _)| range)
+    }
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
+    }
+}
+
 // We can't just derive this automatically, because that would
 // expose irrelevant (and private) implementation details.
 // Instead implement it in the same way that the underlying BTreeSet does.
