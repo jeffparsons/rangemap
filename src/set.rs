@@ -128,7 +128,7 @@ where
 }
 
 pub struct Gaps<'a, T> {
-    inner: crate::map::Gaps<'a, T, ()>,
+    inner: crate::map::iterators::Gaps<'a, T, ()>,
 }
 
 // `Gaps` is always fused. (See definition of `next` below.)

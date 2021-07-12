@@ -26,6 +26,9 @@ impl<T> RangeStartWrapper<T> {
     pub fn new(range: Range<T>) -> RangeStartWrapper<T> {
         RangeStartWrapper { range }
     }
+    pub fn point(at: T) -> RangeStartWrapper<T> where T:Clone {
+        RangeStartWrapper {range: at.clone()..at }
+    }
 }
 
 impl<T> PartialEq for RangeStartWrapper<T>
