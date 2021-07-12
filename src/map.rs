@@ -1,8 +1,11 @@
 use super::range_wrapper::RangeStartWrapper;
 use crate::std_ext::*;
 use alloc::collections::BTreeMap;
+use core::borrow::Borrow;
+use core::cmp::Ordering;
 use core::fmt::{self, Debug};
-use core::ops::Range;
+use core::hash::{Hash, Hasher};
+use core::ops::{Index, Range};
 use core::prelude::v1::*;
 
 /// A map whose keys are stored as (half-open) ranges bounded
@@ -17,65 +20,160 @@ pub struct RangeMap<K, V> {
     btm: BTreeMap<RangeStartWrapper<K>, V>,
 }
 
-impl<K, V> Default for RangeMap<K, V>
-where
-    K: Ord + Clone,
-    V: Eq + Clone,
-{
-    fn default() -> Self {
-        Self::new()
-    }
-}
+// TODO: note differences with std (borrow Q stuff)
 
 impl<K, V> RangeMap<K, V>
 where
     K: Ord + Clone,
     V: Eq + Clone,
 {
-    /// Makes a new empty `RangeMap`.
+    /// Makes a new, empty `RangeMap`.
+    ///
+    /// Does not allocate anything on its own.
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    ///
+    /// ```
+    /// use rangemap::RangeMap;
+    ///
+    /// let mut map = RangeMap::new();
+    ///
+    /// // entries can now be inserted into the empty map
+    /// map.insert(0..1, "a");
+    /// ```
     pub fn new() -> Self {
         RangeMap {
             btm: BTreeMap::new(),
         }
     }
 
+    /// Clears the map, removing all elements.
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    ///
+    /// ```
+    /// use rangemap::RangeMap;
+    ///
+    /// let mut a = RangeMap::new();
+    /// a.insert(0..1, "a");
+    /// a.clear();
+    /// assert!(a.is_empty());
+    /// ```
+    pub fn clear(&mut self) {
+        self.btm.clear()
+    }
+
     /// Returns a reference to the value corresponding to the given key,
     /// if the key is covered by any range in the map.
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    ///
+    /// ```
+    /// use rangemap::RangeMap;
+    ///
+    /// let mut map = RangeMap::new();
+    /// map.insert(0..1, "a");
+    /// assert_eq!(map.get(&0), Some(&"a"));
+    /// assert_eq!(map.get(&2), None);
+    /// ```
     pub fn get(&self, key: &K) -> Option<&V> {
         self.get_key_value(key).map(|(_range, value)| value)
     }
 
     /// Returns the range-value pair (as a pair of references) corresponding
     /// to the given key, if the key is covered by any range in the map.
-    pub fn get_key_value(&self, key: &K) -> Option<(&Range<K>, &V)> {
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use rangemap::RangeMap;
+    ///
+    /// let mut map = RangeMap::new();
+    /// map.insert(0..1, "a");
+    /// assert_eq!(map.get_key_value(&0), Some((&(0..1), &"a")));
+    /// assert_eq!(map.get_key_value(&2), None);
+    /// ```
+    pub fn get_key_value(&self, k: &K) -> Option<(&Range<K>, &V)> {
         use core::ops::Bound;
 
         // The only stored range that could contain the given key is the
         // last stored range whose start is less than or equal to this key.
-        let key_as_start = RangeStartWrapper::new(key.clone()..key.clone());
+        let key_as_start = RangeStartWrapper::new(k.clone()..k.clone());
         self.btm
             .range((Bound::Unbounded, Bound::Included(key_as_start)))
             .next_back()
             .filter(|(range_start_wrapper, _value)| {
                 // Does the only candidate range contain
                 // the requested key?
-                range_start_wrapper.range.contains(key)
+                range_start_wrapper.range.contains(k)
             })
             .map(|(range_start_wrapper, value)| (&range_start_wrapper.range, value))
     }
 
     /// Returns `true` if any range in the map covers the specified key.
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    ///
+    /// ```
+    /// use rangemap::RangeMap;
+    ///
+    /// let mut map = RangeMap::new();
+    /// map.insert(0..1, "a");
+    /// assert_eq!(map.contains_key(&0), true);
+    /// assert_eq!(map.contains_key(&2), false);
+    /// ```
     pub fn contains_key(&self, key: &K) -> bool {
         self.get(key).is_some()
     }
 
-    /// Gets an iterator over all pairs of key range and value,
-    /// ordered by key range.
-    ///
-    /// The iterator element type is `(&'a Range<K>, &'a V)`.
-    pub fn iter(&self) -> impl Iterator<Item = (&Range<K>, &V)> {
-        self.btm.iter().map(|(by_start, v)| (&by_start.range, v))
-    }
+    // TODO: Implement: Should this mutate the entire containing range (the
+    // implementation as a map might see it), or should it add a new point
+    // range?). Because of this ambiguity, maybe this function *shouldn't* be
+    // implemented, in favor of get_range() or insert() or update_range(), etc?
+
+    // /// Returns a mutable reference to the value corresponding to the key.
+    // ///
+    // /// The key may be any borrowed form of the map's key type, but the ordering
+    // /// on the borrowed form *must* match the ordering on the key type.
+    // ///
+    // /// # Examples
+    // ///
+    // /// Basic usage:
+    // ///
+    // /// ```
+    // /// use std::collections::BTreeMap;
+    // ///
+    // /// let mut map = BTreeMap::new();
+    // /// map.insert(1, "a");
+    // /// if let Some(x) = map.get_mut(&1) {
+    // ///     *x = "b";
+    // /// }
+    // /// assert_eq!(map[&1], "b");
+    // /// ```
+    // BTreeMap Implementation
+    // pub fn get_mut<Q: ?Sized>(&mut self, key: &Q) -> Option<&mut V>
+    // where
+    //     K: Borrow<Q> + Ord,
+    //     Q: Ord,
+    // {
+    //     let root_node = self.root.as_mut()?.borrow_mut();
+    //     match root_node.search_tree(key) {
+    //         Found(handle) => Some(handle.into_val_mut()),
+    //         GoDown(_) => None,
+    //     }
+    // }
+
+    // TODO: for BTreeMap parity, return value on overlap? What to do with multiple overlaps?
+    // Maybe return another RangeMap with the removed segments? But that would allocate,
+    // so that could be opt-in via a similar function (insert_returning, or something)?
 
     /// Insert a pair of key range and value into the map.
     ///
@@ -90,6 +188,22 @@ where
     /// # Panics
     ///
     /// Panics if range `start >= end`.
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    ///
+    /// ```
+    /// use rangemap::RangeMap;
+    ///
+    /// let mut map = RangeMap::new();
+    /// map.insert(0..4, "a");
+    /// assert_eq!(map.is_empty(), false);
+    ///
+    /// map.insert(2..6, "b");
+    /// assert_eq!(map[&1], "a");
+    /// assert_eq!(map[&3], "b");
+    /// ```
     pub fn insert(&mut self, range: Range<K>, value: V) {
         use core::ops::Bound;
 
@@ -191,6 +305,7 @@ where
         self.btm.insert(new_range_start_wrapper, new_value);
     }
 
+    // TODO: similar to insert(), can we return values? overlaps?
     /// Removes a range from the map, if all or any of it was present.
     ///
     /// If the range to be removed _partially_ overlaps any ranges
@@ -201,6 +316,22 @@ where
     /// # Panics
     ///
     /// Panics if range `start >= end`.
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    ///
+    /// ```
+    /// use rangemap::RangeMap;
+    ///
+    /// let mut map = RangeMap::new();
+    /// map.insert(0..10, "a");
+    /// map.remove(3..5);
+    /// assert_eq!(map.get(&0), Some("a"));
+    /// assert_eq!(map.get(&3), None);
+    /// assert_eq!(map.get(&5), Some("a"));
+    /// assert_eq!(map.get(&8), Some("a"));
+    /// ```
     pub fn remove(&mut self, range: Range<K>) {
         use core::ops::Bound;
 
@@ -262,6 +393,139 @@ where
                 &range,
             );
         }
+    }
+
+    // TODO: Implement remove_entry()? It could just be folded into remove, returning the
+    // original range of the items removed... But we get the same overlap issue with insert
+
+    // TODO: retain()? Relies on unsatble drain_filter, though...
+
+    // TODO: check len() in doctest
+    /// Moves all elements from `other` into `Self`, leaving `other` empty.
+    ///
+    /// # Examples
+    ///
+    /// ```
+    /// use std::collections::BTreeMap;
+    ///
+    /// let mut a = BTreeMap::new();
+    /// a.insert(0..1, "a");
+    /// a.insert(1..2, "b");
+    /// a.insert(2..3, "c");
+    ///
+    /// let mut b = BTreeMap::new();
+    /// b.insert(2..3, "d");
+    /// b.insert(3..4, "e");
+    /// b.insert(4..5, "f");
+    ///
+    /// a.append(&mut b);
+    ///
+    /// // assert_eq!(a.len(), 5);
+    /// // assert_eq!(b.len(), 0);
+    ///
+    /// assert_eq!(a[&0], "a");
+    /// assert_eq!(a[&1], "b");
+    /// assert_eq!(a[&2], "d");
+    /// assert_eq!(a[&3], "e");
+    /// assert_eq!(a[&4], "f");
+    /// ```
+    pub fn append(&mut self, other: &mut Self) {
+        // Do we have to append anything at all?
+        if other.is_empty() {
+            return;
+        }
+
+        // We can just swap `self` and `other` if `self` is empty.
+        if self.is_empty() {
+            core::mem::swap(self, other);
+            return;
+        }
+
+        // Otherwise, insert everything from other into self
+        // TODO: implementation here is not exactly what BTreeMap does... This is pretty much just .extend()
+        let other_iter = core::mem::take(other).into_iter();
+        for (range, value) in other_iter {
+            self.insert(range, value)
+        }
+    }
+
+    // TODO: description / Tests
+    // This is probably what get_mut should point to
+    // /// Gets the given key's corresponding entry in the map for in-place manipulation.
+    // ///
+    // /// # Examples
+    // ///
+    // /// Basic usage:
+    // ///
+    // /// ```
+    // /// use std::collections::BTreeMap;
+    // ///
+    // /// let mut count: BTreeMap<&str, usize> = BTreeMap::new();
+    // ///
+    // /// // count the number of occurrences of letters in the vec
+    // /// for x in vec!["a", "b", "a", "c", "a", "b"] {
+    // ///     *count.entry(x).or_insert(0) += 1;
+    // /// }
+    // ///
+    // /// assert_eq!(count["a"], 3);
+    // /// ```
+    // pub fn entry(&mut self, key: K) -> Entry<'_, K, V> {
+    //     self.get_key_value(&k);
+    //     // TODO: Entry api
+    //     todo!()
+    // }
+
+    // TODO: doctest
+    /// Splits the map into two at the given point. Returns everything after the given key,
+    /// including the key.
+    ///
+    /// # Examples
+    ///
+    /// Basic usage:
+    ///
+    /// ```
+    /// use std::collections::BTreeMap;
+    ///
+    /// let mut a = BTreeMap::new();
+    /// a.insert(1, "a");
+    /// a.insert(2, "b");
+    /// a.insert(3, "c");
+    /// a.insert(17, "d");
+    /// a.insert(41, "e");
+    ///
+    /// let b = a.split_off(&3);
+    ///
+    /// assert_eq!(a.len(), 2);
+    /// assert_eq!(b.len(), 3);
+    ///
+    /// assert_eq!(a[&1], "a");
+    /// assert_eq!(a[&2], "b");
+    ///
+    /// assert_eq!(b[&3], "c");
+    /// assert_eq!(b[&17], "d");
+    /// assert_eq!(b[&41], "e");
+    /// ```
+    pub fn split_off<Q: ?Sized + Ord>(&mut self, key: &Q) -> Self
+    where
+        K: Borrow<Q> + Ord,
+    {
+        if self.is_empty() {
+            return Self::new();
+        }
+
+        // TODO: check if this key is in a range and if we need to split one,
+        // If it is, we'll need to put that range on each side
+        todo!()
+
+        // let total_num = self.len();
+        // let left_root = self.root.as_mut().unwrap(); // unwrap succeeds because not empty
+
+        // let right_root = left_root.split_off(key);
+
+        // let (new_left_len, right_len) = Root::calc_split_length(total_num, &left_root, &right_root);
+        // self.length = new_left_len;
+
+        // BTreeMap { root: Some(right_root), length: right_len }
     }
 
     fn adjust_touching_ranges_for_insert(
@@ -380,25 +644,40 @@ where
     }
 }
 
-pub struct IntoIter<K, V> {
-    inner: alloc::collections::btree_map::IntoIter<RangeStartWrapper<K>, V>,
-}
-impl<K, V> IntoIterator for RangeMap<K, V> {
-    type Item = (Range<K>, V);
-    type IntoIter = IntoIter<K, V>;
-    fn into_iter(self) -> Self::IntoIter {
-        IntoIter {
-            inner: self.btm.into_iter(),
+impl<K: Hash, V: Hash> Hash for RangeMap<K, V> {
+    fn hash<H: Hasher>(&self, state: &mut H) {
+        for elt in self {
+            elt.hash(state);
         }
     }
 }
-impl<K, V> Iterator for IntoIter<K, V> {
-    type Item = (Range<K>, V);
-    fn next(&mut self) -> Option<(Range<K>, V)> {
-        self.inner.next().map(|(by_start, v)| (by_start.range, v))
+
+impl<K, V> Default for RangeMap<K, V>
+where
+    K: Ord + Clone,
+    V: Eq + Clone,
+{
+    fn default() -> Self {
+        Self::new()
     }
-    fn size_hint(&self) -> (usize, Option<usize>) {
-        self.inner.size_hint()
+}
+
+impl<K: PartialEq, V: PartialEq> PartialEq for RangeMap<K, V> {
+    fn eq(&self, other: &Self) -> bool {
+        self.len() == other.len() && self.iter().zip(other).all(|(a, b)| a == b)
+    }
+}
+impl<K: Eq, V: Eq> Eq for RangeMap<K, V> {}
+impl<K: PartialOrd + Ord, V: PartialOrd> PartialOrd for RangeMap<K, V> {
+    #[inline]
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        self.btm.iter().partial_cmp(other.btm.iter())
+    }
+}
+impl<K: Ord, V: Ord> Ord for RangeMap<K, V> {
+    #[inline]
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.btm.iter().cmp(other.btm.iter())
     }
 }
 
@@ -412,6 +691,24 @@ where
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_map().entries(self.iter()).finish()
+    }
+}
+
+impl<K, V> Index<&K> for RangeMap<K, V>
+where
+    K: Clone + Ord,
+    V: Eq + Clone,
+{
+    type Output = V;
+
+    /// Returns a reference to the value corresponding to the supplied key.
+    ///
+    /// # Panics
+    ///
+    /// Panics if the key is not present in the `RangeMap`.
+    #[inline]
+    fn index(&self, key: &K) -> &V {
+        self.get(key).expect("no entry found for key")
     }
 }
 
@@ -462,6 +759,675 @@ where
         self.candidate_start = next_candidate_start;
         Some(gap)
     }
+}
+
+pub mod iterators {
+    // TODO: add Gaps here
+    use core::borrow::Borrow;
+    use core::fmt::{self, Debug};
+    use core::iter::{FromIterator, FusedIterator};
+    use core::ops::{Range, RangeBounds};
+
+    use super::{RangeMap, RangeStartWrapper};
+
+    impl<K, V> RangeMap<K, V> {
+        // TODO: doctest
+        /// Gets an iterator over the entries of the map, sorted by key.
+        ///
+        /// # Examples
+        ///
+        /// Basic usage:
+        ///
+        /// ```
+        /// use std::collections::BTreeMap;
+        ///
+        /// let mut map = BTreeMap::new();
+        /// map.insert(3, "c");
+        /// map.insert(2, "b");
+        /// map.insert(1, "a");
+        ///
+        /// for (key, value) in map.iter() {
+        ///     println!("{}: {}", key, value);
+        /// }
+        ///
+        /// let (first_key, first_value) = map.iter().next().unwrap();
+        /// assert_eq!((*first_key, *first_value), (1, "a"));
+        /// ```
+        pub fn iter(&self) -> Iter<'_, K, V> {
+            Iter(self.btm.iter())
+        }
+
+        // TODO: doctest
+        /// Gets a mutable iterator over the entries of the map, sorted by key.
+        ///
+        /// # Examples
+        ///
+        /// Basic usage:
+        ///
+        /// ```
+        /// use std::collections::BTreeMap;
+        ///
+        /// let mut map = BTreeMap::new();
+        /// map.insert("a", 1);
+        /// map.insert("b", 2);
+        /// map.insert("c", 3);
+        ///
+        /// // add 10 to the value if the key isn't "a"
+        /// for (key, value) in map.iter_mut() {
+        ///     if key != &"a" {
+        ///         *value += 10;
+        ///     }
+        /// }
+        /// ```
+        pub fn iter_mut(&mut self) -> IterMut<'_, K, V> {
+            IterMut(self.btm.iter_mut())
+        }
+
+        // TODO: doctest
+        /// Gets an iterator over the keys of the map, in sorted order.
+        ///
+        /// # Examples
+        ///
+        /// Basic usage:
+        ///
+        /// ```
+        /// use std::collections::BTreeMap;
+        ///
+        /// let mut a = BTreeMap::new();
+        /// a.insert(2, "b");
+        /// a.insert(1, "a");
+        ///
+        /// let keys: Vec<_> = a.keys().cloned().collect();
+        /// assert_eq!(keys, [1, 2]);
+        /// ```
+        pub fn keys(&self) -> Keys<'_, K, V> {
+            Keys(self.iter())
+        }
+
+        // TODO: doctest
+        /// Gets an iterator over the values of the map, in order by key.
+        ///
+        /// # Examples
+        ///
+        /// Basic usage:
+        ///
+        /// ```
+        /// use std::collections::BTreeMap;
+        ///
+        /// let mut a = BTreeMap::new();
+        /// a.insert(1, "hello");
+        /// a.insert(2, "goodbye");
+        ///
+        /// let values: Vec<&str> = a.values().cloned().collect();
+        /// assert_eq!(values, ["hello", "goodbye"]);
+        /// ```
+        pub fn values(&self) -> Values<'_, K, V> {
+            Values(self.iter())
+        }
+
+        // TODO: doctest
+        /// Gets a mutable iterator over the values of the map, in order by key.
+        ///
+        /// # Examples
+        ///
+        /// Basic usage:
+        ///
+        /// ```
+        /// use std::collections::BTreeMap;
+        ///
+        /// let mut a = BTreeMap::new();
+        /// a.insert(1, String::from("hello"));
+        /// a.insert(2, String::from("goodbye"));
+        ///
+        /// for value in a.values_mut() {
+        ///     value.push_str("!");
+        /// }
+        ///
+        /// let values: Vec<String> = a.values().cloned().collect();
+        /// assert_eq!(values, [String::from("hello!"),
+        ///                     String::from("goodbye!")]);
+        /// ```
+        pub fn values_mut(&mut self) -> ValuesMut<'_, K, V> {
+            ValuesMut(self.iter_mut())
+        }
+
+        // TODO: doctest
+        /// Returns the number of elements in the map.
+        ///
+        /// # Examples
+        ///
+        /// Basic usage:
+        ///
+        /// ```
+        /// use std::collections::BTreeMap;
+        ///
+        /// let mut a = BTreeMap::new();
+        /// assert_eq!(a.len(), 0);
+        /// a.insert(1, "a");
+        /// assert_eq!(a.len(), 1);
+        /// ```
+        pub const fn len(&self) -> usize {
+            self.btm.len()
+        }
+
+        // TODO: doctest
+        /// Returns `true` if the map contains no elements.
+        ///
+        /// # Examples
+        ///
+        /// Basic usage:
+        ///
+        /// ```
+        /// use std::collections::BTreeMap;
+        ///
+        /// let mut a = BTreeMap::new();
+        /// assert!(a.is_empty());
+        /// a.insert(1, "a");
+        /// assert!(!a.is_empty());
+        /// ```
+        pub const fn is_empty(&self) -> bool {
+            self.btm.is_empty()
+        }
+
+        // /// Constructs a double-ended iterator over a sub-range of elements in the map.
+        // /// The simplest way is to use the range syntax `min..max`, thus `range(min..max)` will
+        // /// yield elements from min (inclusive) to max (exclusive).
+        // /// The range may also be entered as `(Bound<T>, Bound<T>)`, so for example
+        // /// `range((Excluded(4), Included(10)))` will yield a left-exclusive, right-inclusive
+        // /// range from 4 to 10.
+        // ///
+        // /// # Panics
+        // ///
+        // /// Panics if range `start > end`.
+        // /// Panics if range `start == end` and both bounds are `Excluded`.
+        // ///
+        // /// # Examples
+        // ///
+        // /// Basic usage:
+        // ///
+        // /// ```
+        // /// use std::collections::BTreeMap;
+        // /// use std::ops::Bound::Included;
+        // ///
+        // /// let mut map = BTreeMap::new();
+        // /// map.insert(3, "a");
+        // /// map.insert(5, "b");
+        // /// map.insert(8, "c");
+        // /// for (&key, &value) in map.range((Included(&4), Included(&8))) {
+        // ///     println!("{}: {}", key, value);
+        // /// }
+        // /// assert_eq!(Some((&5, &"b")), map.range(4..).next());
+        // /// ```
+        // pub fn range<T: ?Sized, R>(&self, range: R) -> XRange<'_, K, V>
+        // where
+        //     T: Ord,
+        //     K: Borrow<T> + Ord,
+        //     R: RangeBounds<T>,
+        // {
+        //     // TODO
+        //     todo!()
+        // }
+
+        // /// Constructs a mutable double-ended iterator over a sub-range of elements in the map.
+        // /// The simplest way is to use the range syntax `min..max`, thus `range(min..max)` will
+        // /// yield elements from min (inclusive) to max (exclusive).
+        // /// The range may also be entered as `(Bound<T>, Bound<T>)`, so for example
+        // /// `range((Excluded(4), Included(10)))` will yield a left-exclusive, right-inclusive
+        // /// range from 4 to 10.
+        // ///
+        // /// # Panics
+        // ///
+        // /// Panics if range `start > end`.
+        // /// Panics if range `start == end` and both bounds are `Excluded`.
+        // ///
+        // /// # Examples
+        // ///
+        // /// Basic usage:
+        // ///
+        // /// ```
+        // /// use std::collections::BTreeMap;
+        // ///
+        // /// let mut map: BTreeMap<&str, i32> = ["Alice", "Bob", "Carol", "Cheryl"]
+        // ///     .iter()
+        // ///     .map(|&s| (s, 0))
+        // ///     .collect();
+        // /// for (_, balance) in map.range_mut("B".."Cheryl") {
+        // ///     *balance += 100;
+        // /// }
+        // /// for (name, balance) in &map {
+        // ///     println!("{} => {}", name, balance);
+        // /// }
+        // /// ```
+        // pub fn range_mut<T: ?Sized, R>(&mut self, range: R) -> XRangeMut<'_, K, V>
+        // where
+        //     T: Ord,
+        //     K: Borrow<T> + Ord,
+        //     R: RangeBounds<T>,
+        // {
+        //     todo!()
+        //     // TODO
+        // }
+    }
+
+    impl<'a, K, V> IntoIterator for &'a RangeMap<K, V> {
+        type Item = (&'a Range<K>, &'a V);
+        type IntoIter = Iter<'a, K, V>;
+        fn into_iter(self) -> Iter<'a, K, V> {
+            self.iter()
+        }
+    }
+
+    /// An iterator over the entries of a `RangeMap`.
+    ///
+    /// This `struct` is created by the [`iter`] method on [`RangeMap`]. See its
+    /// documentation for more.
+    ///
+    /// [`iter`]: RangeMap::iter
+    pub struct Iter<'a, K, V>(alloc::collections::btree_map::Iter<'a, RangeStartWrapper<K>, V>);
+    impl<K: Debug, V: Debug> Debug for Iter<'_, K, V> {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            f.debug_list().entries(self.clone()).finish()
+        }
+    }
+    impl<'a, K: 'a, V: 'a> Iterator for Iter<'a, K, V> {
+        type Item = (&'a Range<K>, &'a V);
+        fn next(&mut self) -> Option<(&'a Range<K>, &'a V)> {
+            self.0.next().map(|(wrapper, v)| (&wrapper.range, v))
+        }
+        fn size_hint(&self) -> (usize, Option<usize>) {
+            self.0.size_hint()
+        }
+        fn last(mut self) -> Option<(&'a Range<K>, &'a V)> {
+            self.next_back()
+        }
+        fn min(mut self) -> Option<(&'a Range<K>, &'a V)> {
+            self.next()
+        }
+        fn max(mut self) -> Option<(&'a Range<K>, &'a V)> {
+            self.next_back()
+        }
+    }
+    impl<K, V> FusedIterator for Iter<'_, K, V> {}
+
+    impl<'a, K: 'a, V: 'a> DoubleEndedIterator for Iter<'a, K, V> {
+        fn next_back(&mut self) -> Option<(&'a Range<K>, &'a V)> {
+            self.0.next_back().map(|(wrapper, v)| (&wrapper.range, v))
+        }
+    }
+    impl<K, V> ExactSizeIterator for Iter<'_, K, V> {
+        fn len(&self) -> usize {
+            self.0.len()
+        }
+    }
+    impl<K, V> Clone for Iter<'_, K, V> {
+        fn clone(&self) -> Self {
+            Self(self.0.clone())
+        }
+    }
+
+    impl<'a, K, V> IntoIterator for &'a mut RangeMap<K, V> {
+        type Item = (&'a Range<K>, &'a mut V);
+        type IntoIter = IterMut<'a, K, V>;
+        fn into_iter(self) -> IterMut<'a, K, V> {
+            self.iter_mut()
+        }
+    }
+    /// A mutable iterator over the entries of a `RangeMap`.
+    ///
+    /// This `struct` is created by the [`iter_mut`] method on [`RangeMap`]. See its
+    /// documentation for more.
+    ///
+    /// [`iter_mut`]: RangeMap::iter_mut
+    pub struct IterMut<'a, K: 'a, V: 'a>(
+        alloc::collections::btree_map::IterMut<'a, RangeStartWrapper<K>, V>,
+    );
+    // TODO
+    impl<K: Debug, V: Debug> Debug for IterMut<'_, K, V> {
+        fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+            self.0.fmt(f)
+        }
+    }
+
+    impl<'a, K: 'a, V: 'a> Iterator for IterMut<'a, K, V> {
+        type Item = (&'a Range<K>, &'a mut V);
+
+        fn next(&mut self) -> Option<(&'a Range<K>, &'a mut V)> {
+            self.0.next().map(|(wrapper, v)| (&wrapper.range, v))
+        }
+
+        fn size_hint(&self) -> (usize, Option<usize>) {
+            self.0.size_hint()
+        }
+
+        fn last(mut self) -> Option<(&'a Range<K>, &'a mut V)> {
+            self.next_back()
+        }
+
+        fn min(mut self) -> Option<(&'a Range<K>, &'a mut V)> {
+            self.next()
+        }
+
+        fn max(mut self) -> Option<(&'a Range<K>, &'a mut V)> {
+            self.next_back()
+        }
+    }
+
+    impl<'a, K: 'a, V: 'a> DoubleEndedIterator for IterMut<'a, K, V> {
+        fn next_back(&mut self) -> Option<(&'a Range<K>, &'a mut V)> {
+            self.0.next_back().map(|(wrapper, v)| (&wrapper.range, v))
+        }
+    }
+
+    impl<K, V> ExactSizeIterator for IterMut<'_, K, V> {
+        fn len(&self) -> usize {
+            self.0.len()
+        }
+    }
+
+    impl<K, V> FusedIterator for IterMut<'_, K, V> {}
+
+    // impl<'a, K, V> IterMut<'a, K, V> {
+    //     /// Returns an iterator of references over the remaining items.
+    //     #[inline]
+    //     pub(super) fn iter(&self) -> Iter<'_, K, V> {
+    //         Iter(self.0.iter())
+    //     }
+    // }
+
+    // TODO: Move to Iterators
+    impl<K, V> IntoIterator for RangeMap<K, V> {
+        type Item = (Range<K>, V);
+        type IntoIter = IntoIter<K, V>;
+        fn into_iter(self) -> Self::IntoIter {
+            IntoIter(self.btm.into_iter())
+        }
+    }
+    /// An owning iterator over the entries of a `RangeMap`.
+    ///
+    /// This `struct` is created by the [`into_iter`] method on [`RangeMap`]
+    /// (provided by the `IntoIterator` trait). See its documentation for more.
+    ///
+    /// [`into_iter`]: IntoIterator::into_iter
+    pub struct IntoIter<K, V>(alloc::collections::btree_map::IntoIter<RangeStartWrapper<K>, V>);
+    // impl<K: Debug, V: Debug> Debug for IntoIter<K, V> {
+    //     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    //         f.debug_list().entries(self.iter()).finish()
+    //     }
+    // }
+    impl<K, V> Iterator for IntoIter<K, V> {
+        type Item = (Range<K>, V);
+        fn next(&mut self) -> Option<(Range<K>, V)> {
+            self.0.next().map(|(wrapper, v)| (wrapper.range, v))
+        }
+        fn size_hint(&self) -> (usize, Option<usize>) {
+            self.0.size_hint()
+        }
+    }
+    impl<K, V> DoubleEndedIterator for IntoIter<K, V> {
+        fn next_back(&mut self) -> Option<(Range<K>, V)> {
+            self.0.next_back().map(|(wrapper, v)| (wrapper.range, v))
+        }
+    }
+    impl<K, V> ExactSizeIterator for IntoIter<K, V> {
+        fn len(&self) -> usize {
+            self.0.len()
+        }
+    }
+    impl<K, V> FusedIterator for IntoIter<K, V> {}
+    // impl<K, V> IntoIter<K, V> {
+    //     #[inline]
+    //     pub(super) fn iter(&self) -> Iter<'_, K, V> {
+    //         Iter(self.)
+    //     }
+    // }
+
+    /// An iterator over the keys of a `RangeMap`.
+    ///
+    /// This `struct` is created by the [`keys`] method on [`RangeMap`]. See its
+    /// documentation for more.
+    ///
+    /// [`keys`]: RangeMap::keys
+    #[derive(Clone)]
+    pub struct Keys<'a, K: 'a, V: 'a>(Iter<'a, K, V>);
+    // TODO
+    // impl<K: Debug, V> Debug for Keys<'_, K, V> {
+    //     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    //         f.debug_list().entries(self.clone()).finish()
+    //     }
+    // }
+    impl<'a, K, V> Iterator for Keys<'a, K, V> {
+        type Item = &'a Range<K>;
+        fn next(&mut self) -> Option<&'a Range<K>> {
+            self.0.next().map(|(k, _)| k)
+        }
+        fn size_hint(&self) -> (usize, Option<usize>) {
+            self.0.size_hint()
+        }
+        fn last(mut self) -> Option<&'a Range<K>> {
+            self.next_back()
+        }
+        fn min(mut self) -> Option<&'a Range<K>> {
+            self.next()
+        }
+        fn max(mut self) -> Option<&'a Range<K>> {
+            self.next_back()
+        }
+    }
+    impl<'a, K, V> DoubleEndedIterator for Keys<'a, K, V> {
+        fn next_back(&mut self) -> Option<&'a Range<K>> {
+            self.0.next_back().map(|(k, _)| k)
+        }
+    }
+    impl<K, V> ExactSizeIterator for Keys<'_, K, V> {
+        fn len(&self) -> usize {
+            self.0.len()
+        }
+    }
+    impl<K, V> FusedIterator for Keys<'_, K, V> {}
+
+    /// An iterator over the values of a `RangeMap`.
+    ///
+    /// This `struct` is created by the [`values`] method on [`RangeMap`]. See its
+    /// documentation for more.
+    ///
+    /// [`values`]: RangeMap::values
+    #[derive(Clone)]
+    pub struct Values<'a, K: 'a, V: 'a>(Iter<'a, K, V>);
+    // TODO
+    // impl<K, V: Debug> Debug for Values<'_, K, V> {
+    //     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    //         f.debug_list().entries(self.clone()).finish()
+    //     }
+    // }
+    impl<'a, K, V> Iterator for Values<'a, K, V> {
+        type Item = &'a V;
+        fn next(&mut self) -> Option<&'a V> {
+            self.0.next().map(|(_, v)| v)
+        }
+        fn size_hint(&self) -> (usize, Option<usize>) {
+            self.0.size_hint()
+        }
+        fn last(mut self) -> Option<&'a V> {
+            self.next_back()
+        }
+    }
+    impl<'a, K, V> DoubleEndedIterator for Values<'a, K, V> {
+        fn next_back(&mut self) -> Option<&'a V> {
+            self.0.next_back().map(|(_, v)| v)
+        }
+    }
+    impl<K, V> ExactSizeIterator for Values<'_, K, V> {
+        fn len(&self) -> usize {
+            self.0.len()
+        }
+    }
+    impl<K, V> FusedIterator for Values<'_, K, V> {}
+
+    /// A mutable iterator over the values of a `RangeMap`.
+    ///
+    /// This `struct` is created by the [`values_mut`] method on [`RangeMap`]. See its
+    /// documentation for more.
+    ///
+    /// [`values_mut`]: RangeMap::values_mut
+    pub struct ValuesMut<'a, K: 'a, V: 'a>(IterMut<'a, K, V>);
+    // TODO
+    // impl<K, V: Debug> Debug for ValuesMut<'_, K, V> {
+    //     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    //         f.debug_list()
+    //             .entries(self.iter().map(|(_, val)| val))
+    //             .finish()
+    //     }
+    // }
+    impl<'a, K, V> Iterator for ValuesMut<'a, K, V> {
+        type Item = &'a mut V;
+        fn next(&mut self) -> Option<&'a mut V> {
+            self.0.next().map(|(_, v)| v)
+        }
+        fn size_hint(&self) -> (usize, Option<usize>) {
+            self.0.size_hint()
+        }
+        fn last(mut self) -> Option<&'a mut V> {
+            self.next_back()
+        }
+    }
+    impl<'a, K, V> DoubleEndedIterator for ValuesMut<'a, K, V> {
+        fn next_back(&mut self) -> Option<&'a mut V> {
+            self.0.next_back().map(|(_, v)| v)
+        }
+    }
+    impl<K, V> ExactSizeIterator for ValuesMut<'_, K, V> {
+        fn len(&self) -> usize {
+            self.0.len()
+        }
+    }
+    impl<K, V> FusedIterator for ValuesMut<'_, K, V> {}
+
+    // TODO: method name?
+    // TODO: struct names
+    // /// An iterator over a sub-range of entries in a `RangeMap`.
+    // ///
+    // /// This `struct` is created by the [`range`] method on [`RangeMap`]. See its
+    // /// documentation for more.
+    // ///
+    // /// [`range`]: RangeMap::range
+    // pub struct XRange<'a, K: 'a, V: 'a>(alloc::collections::btree_map::Range<'a, K, V>);
+    // impl<K: Debug, V: Debug> Debug for XRange<'_, K, V> {
+    //     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    //         f.debug_list().entries(self.clone()).finish()
+    //     }
+    // }
+    // impl<'a, K, V> Iterator for XRange<'a, K, V> {
+    //     type Item = (&'a K, &'a V);
+
+    //     fn next(&mut self) -> Option<(&'a K, &'a V)> {
+    //         if self.inner.is_empty() {
+    //             None
+    //         } else {
+    //             Some(unsafe { self.next_unchecked() })
+    //         }
+    //     }
+
+    //     fn last(mut self) -> Option<(&'a K, &'a V)> {
+    //         self.next_back()
+    //     }
+
+    //     fn min(mut self) -> Option<(&'a K, &'a V)> {
+    //         self.next()
+    //     }
+
+    //     fn max(mut self) -> Option<(&'a K, &'a V)> {
+    //         self.next_back()
+    //     }
+    // }
+    // impl<'a, K, V> DoubleEndedIterator for XRange<'a, K, V> {
+    //     fn next_back(&mut self) -> Option<(&'a K, &'a V)> {
+    //         if self.inner.is_empty() {
+    //             None
+    //         } else {
+    //             Some(unsafe { self.next_back_unchecked() })
+    //         }
+    //     }
+    // }
+    // impl<K, V> FusedIterator for Range<'_, K, V> {}
+
+    // /// A mutable iterator over a sub-range of entries in a `RangeMap`.
+    // ///
+    // /// This `struct` is created by the [`range_mut`] method on [`RangeMap`]. See its
+    // /// documentation for more.
+    // ///
+    // /// [`range_mut`]: RangeMap::range_mut
+    // pub struct XRangeMut<'a, K: 'a, V: 'a>(alloc::collections::btree_map::RangeMut<'a, K, V>);
+    // // impl<K: Debug, V: Debug> Debug for RangeMut<'_, K, V> {
+    // //     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+    // //         let range = Range { inner: self.inner.reborrow() };
+    // //         f.debug_list().entries(range).finish()
+    // //     }
+    // // }
+    // impl<'a, K, V> Iterator for RangeMut<'a, K, V> {
+    //     type Item = (&'a K, &'a mut V);
+
+    //     fn next(&mut self) -> Option<(&'a K, &'a mut V)> {
+    //         if self.inner.is_empty() {
+    //             None
+    //         } else {
+    //             Some(unsafe { self.next_unchecked() })
+    //         }
+    //     }
+
+    //     fn last(mut self) -> Option<(&'a K, &'a mut V)> {
+    //         self.next_back()
+    //     }
+
+    //     fn min(mut self) -> Option<(&'a K, &'a mut V)> {
+    //         self.next()
+    //     }
+
+    //     fn max(mut self) -> Option<(&'a K, &'a mut V)> {
+    //         self.next_back()
+    //     }
+    // }
+    // impl<'a, K, V> DoubleEndedIterator for RangeMut<'a, K, V> {
+    //     fn next_back(&mut self) -> Option<(&'a K, &'a mut V)> {
+    //         if self.inner.is_empty() {
+    //             None
+    //         } else {
+    //             Some(unsafe { self.next_back_unchecked() })
+    //         }
+    //     }
+    // }
+    // impl<K, V> FusedIterator for RangeMut<'_, K, V> {}
+
+    // // Support collecting
+    // impl<K: Ord, V> FromIterator<(Range<K>, V)> for RangeMap<K, V> {
+    //     fn from_iter<T: IntoIterator<Item = (Range<K>, V)>>(iter: T) -> RangeMap<K, V> {
+    //         let mut map = RangeMap::new();
+    //         map.extend(iter);
+    //         map
+    //     }
+    // }
+    // impl<K: Ord, V> Extend<(K, V)> for RangeMap<K, V> {
+    //     #[inline]
+    //     fn extend<T: IntoIterator<Item = (Range<K>, V)>>(&mut self, iter: T) {
+    //         iter.into_iter().for_each(move |(k, v)| {
+    //             self.insert(k, v);
+    //         });
+    //     }
+
+    //     // #[inline]
+    //     // fn extend_one(&mut self, (k, v): (Range<K>, V)) {
+    //     //     self.insert(k, v);
+    //     // }
+    // }
+    // impl<'a, K: Ord + Copy, V: Copy> Extend<(&'a Range<K>, &'a V)> for RangeMap<K, V> {
+    //     fn extend<I: IntoIterator<Item = (&'a Range<K>, &'a V)>>(&mut self, iter: I) {
+    //         self.extend(iter.into_iter().map(|(&key, &value)| (key, value)));
+    //     }
+
+    //     // #[inline]
+    //     // fn extend_one(&mut self, (&k, &v): (&'a K, &'a V)) {
+    //     //     self.insert(k, v);
+    //     // }
+    // }
 }
 
 #[cfg(test)]
@@ -1051,20 +2017,23 @@ mod tests {
 
     // Iterator Tests
 
-    #[test]
-    fn into_iter_matches_iter() {
-        // Just use vec since that's the same implementation we'd expect
-        let mut range_map: RangeMap<u32, bool> = RangeMap::new();
-        range_map.insert(1..3, false);
-        range_map.insert(3..5, true);
+    // TODO: more iterator tests
 
-        let cloned = range_map.to_vec();
-        let consumed = range_map.into_iter().collect::<Vec<_>>();
+    // TODO: uncomment
+    // #[test]
+    // fn into_iter_matches_iter() {
+    //     // Just use vec since that's the same implementation we'd expect
+    //     let mut range_map: RangeMap<u32, bool> = RangeMap::new();
+    //     range_map.insert(1..3, false);
+    //     range_map.insert(3..5, true);
 
-        // Correct value
-        assert_eq!(cloned, vec![(1..3, false), (3..5, true)]);
+    //     let cloned = range_map.to_vec();
+    //     let consumed = range_map.into_iter().collect::<Vec<_>>();
 
-        // Equality
-        assert_eq!(cloned, consumed);
-    }
+    //     // Correct value
+    //     assert_eq!(cloned, vec![(1..3, false), (3..5, true)]);
+
+    //     // Equality
+    //     assert_eq!(cloned, consumed);
+    // }
 }
