@@ -1,4 +1,5 @@
 use core::fmt::{self, Debug};
+use core::iter::FromIterator;
 use core::ops::RangeInclusive;
 
 use crate::std_ext::*;
@@ -147,6 +148,28 @@ where
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_set().entries(self.iter()).finish()
+    }
+}
+
+impl<T> FromIterator<RangeInclusive<T>> for RangeInclusiveSet<T>
+where
+    T: Ord + Clone + StepLite,
+{
+    fn from_iter<I: IntoIterator<Item = RangeInclusive<T>>>(iter: I) -> Self {
+        let mut range_set = RangeInclusiveSet::new();
+        range_set.extend(iter);
+        range_set
+    }
+}
+
+impl<T> Extend<RangeInclusive<T>> for RangeInclusiveSet<T>
+where
+    T: Ord + Clone + StepLite,
+{
+    fn extend<I: IntoIterator<Item = RangeInclusive<T>>>(&mut self, iter: I) {
+        iter.into_iter().for_each(move |range| {
+            self.insert(range);
+        })
     }
 }
 

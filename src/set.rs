@@ -1,4 +1,5 @@
 use core::fmt::{self, Debug};
+use core::iter::FromIterator;
 use core::ops::Range;
 use core::prelude::v1::*;
 
@@ -123,6 +124,28 @@ where
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_set().entries(self.iter()).finish()
+    }
+}
+
+impl<T> FromIterator<Range<T>> for RangeSet<T>
+where
+    T: Ord + Clone,
+{
+    fn from_iter<I: IntoIterator<Item = Range<T>>>(iter: I) -> Self {
+        let mut range_set = RangeSet::new();
+        range_set.extend(iter);
+        range_set
+    }
+}
+
+impl<T> Extend<Range<T>> for RangeSet<T>
+where
+    T: Ord + Clone,
+{
+    fn extend<I: IntoIterator<Item = Range<T>>>(&mut self, iter: I) {
+        iter.into_iter().for_each(move |range| {
+            self.insert(range);
+        })
     }
 }
 
