@@ -2,6 +2,7 @@ use super::range_wrapper::RangeInclusiveStartWrapper;
 use crate::std_ext::*;
 use alloc::collections::BTreeMap;
 use core::fmt::{self, Debug};
+use core::iter::FromIterator;
 use core::marker::PhantomData;
 use core::ops::RangeInclusive;
 use core::prelude::v1::*;
@@ -505,6 +506,30 @@ where
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_map().entries(self.iter()).finish()
+    }
+}
+
+impl<K, V> FromIterator<(RangeInclusive<K>, V)> for RangeInclusiveMap<K, V>
+where
+    K: Ord + Clone + StepLite,
+    V: Eq + Clone,
+{
+    fn from_iter<T: IntoIterator<Item = (RangeInclusive<K>, V)>>(iter: T) -> Self {
+        let mut range_map = RangeInclusiveMap::new();
+        range_map.extend(iter);
+        range_map
+    }
+}
+
+impl<K, V> Extend<(RangeInclusive<K>, V)> for RangeInclusiveMap<K, V>
+where
+    K: Ord + Clone + StepLite,
+    V: Eq + Clone,
+{
+    fn extend<T: IntoIterator<Item = (RangeInclusive<K>, V)>>(&mut self, iter: T) {
+        iter.into_iter().for_each(move |(k, v)| {
+            self.insert(k, v);
+        })
     }
 }
 
