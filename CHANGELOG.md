@@ -1,3 +1,8 @@
+### v0.1.12 (2021-08-23)
+
+- **Features**:
+    - Implement more traits for all map and set types: `IntoIter`, `FromIter`, and `Extend`.
+
 ### v0.1.11 (2021-06-30) "EOFY edition"
 
 - **Features**:
