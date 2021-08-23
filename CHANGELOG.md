@@ -2,6 +2,9 @@
 
 - **Features**:
     - Implement more traits for all map and set types: `IntoIter`, `FromIter`, and `Extend`.
+- **Changes**:
+    - Bump minimum supported Rust version to 1.46.
+
 
 ### v0.1.11 (2021-06-30) "EOFY edition"
 
@@ -9,6 +12,7 @@
     - Support `no_std` environments.
 - **Changes**:
     - Update all dev-dependencies to latest versions.
+
 
 ### v0.1.10 (2021-02-23)
 
