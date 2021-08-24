@@ -3,6 +3,14 @@ use core::iter::FromIterator;
 use core::ops::Range;
 use core::prelude::v1::*;
 
+#[cfg(feature = "serde1")]
+use core::marker::PhantomData;
+#[cfg(feature = "serde1")]
+use serde::{
+    de::{Deserialize, Deserializer, SeqAccess, Visitor},
+    ser::{Serialize, Serializer},
+};
+
 use crate::RangeMap;
 
 #[derive(Clone)]
@@ -149,6 +157,74 @@ where
     }
 }
 
+#[cfg(feature = "serde1")]
+impl<T> Serialize for RangeSet<T>
+where
+    T: Ord + Clone + Serialize,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        use serde::ser::SerializeSeq;
+        let mut seq = serializer.serialize_seq(Some(self.rm.btm.len()))?;
+        for range in self.iter() {
+            seq.serialize_element(&(&range.start, &range.end))?;
+        }
+        seq.end()
+    }
+}
+
+#[cfg(feature = "serde1")]
+impl<'de, T> Deserialize<'de> for RangeSet<T>
+where
+    T: Ord + Clone + Deserialize<'de>,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_seq(RangeSetVisitor::new())
+    }
+}
+
+#[cfg(feature = "serde1")]
+struct RangeSetVisitor<T> {
+    marker: PhantomData<fn() -> RangeSet<T>>,
+}
+
+#[cfg(feature = "serde1")]
+impl<T> RangeSetVisitor<T> {
+    fn new() -> Self {
+        RangeSetVisitor {
+            marker: PhantomData,
+        }
+    }
+}
+
+#[cfg(feature = "serde1")]
+impl<'de, T> Visitor<'de> for RangeSetVisitor<T>
+where
+    T: Ord + Clone + Deserialize<'de>,
+{
+    type Value = RangeSet<T>;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str("RangeSet")
+    }
+
+    fn visit_seq<A>(self, mut access: A) -> Result<Self::Value, A::Error>
+    where
+        A: SeqAccess<'de>,
+    {
+        let mut range_set = RangeSet::new();
+        while let Some((start, end)) = access.next_element()? {
+            range_set.insert(start..end);
+        }
+        Ok(range_set)
+    }
+}
+
 pub struct Gaps<'a, T> {
     inner: crate::map::Gaps<'a, T, ()>,
 }
@@ -248,5 +324,32 @@ mod tests {
         set.insert(7..8);
         set.insert(10..11);
         assert_eq!(format!("{:?}", set), "{2..5, 7..8, 10..11}");
+    }
+
+    // impl Serialize
+
+    #[cfg(feature = "serde1")]
+    #[test]
+    fn serialization() {
+        let mut range_set: RangeSet<u32> = RangeSet::new();
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◆---◇ ◌ ◌ ◌ ◌ ◌ ◌
+        range_set.insert(1..3);
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ◌ ◌ ◆---◇ ◌ ◌
+        range_set.insert(5..7);
+        let output = serde_json::to_string(&range_set).expect("Failed to serialize");
+        assert_eq!(output, "[[1,3],[5,7]]");
+    }
+
+    // impl Deserialize
+
+    #[cfg(feature = "serde1")]
+    #[test]
+    fn deserialization() {
+        let input = "[[1,3],[5,7]]";
+        let range_set: RangeSet<u32> = serde_json::from_str(input).expect("Failed to deserialize");
+        let reserialized = serde_json::to_string(&range_set).expect("Failed to re-serialize");
+        assert_eq!(reserialized, input);
     }
 }
