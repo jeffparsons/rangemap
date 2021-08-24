@@ -32,11 +32,19 @@ jobs:
             toolchain: ${{ matrix.toolchain }}
             default: true
             profile: minimal
-      - name: stable test
+      - name: stable test without serde
         uses: actions-rs/cargo@v1
         if: matrix.toolchain != 'nightly'
         with:
           command: test
+      # We just need to make sure we haven't broken it in some obvious way
+      # either with or without serde enabled, so only test with serde on stable.
+      - name: stable test with serde
+        uses: actions-rs/cargo@v1
+        if: matrix.toolchain == 'stable'
+        with:
+          command: test
+          args: --features serde1
       - name: nightly test
         uses: actions-rs/cargo@v1
         if: matrix.toolchain == 'nightly'
