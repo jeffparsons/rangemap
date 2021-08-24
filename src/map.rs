@@ -23,7 +23,7 @@ use serde::{
 pub struct RangeMap<K, V> {
     // Wrap ranges so that they are `Ord`.
     // See `range_wrapper.rs` for explanation.
-    btm: BTreeMap<RangeStartWrapper<K>, V>,
+    pub(crate) btm: BTreeMap<RangeStartWrapper<K>, V>,
 }
 
 impl<K, V> Default for RangeMap<K, V>

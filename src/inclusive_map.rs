@@ -34,7 +34,7 @@ use serde::{
 pub struct RangeInclusiveMap<K, V, StepFnsT = K> {
     // Wrap ranges so that they are `Ord`.
     // See `range_wrapper.rs` for explanation.
-    btm: BTreeMap<RangeInclusiveStartWrapper<K>, V>,
+    pub(crate) btm: BTreeMap<RangeInclusiveStartWrapper<K>, V>,
     _phantom: PhantomData<StepFnsT>,
 }
 
