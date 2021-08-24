@@ -6,6 +6,14 @@ use core::iter::FromIterator;
 use core::ops::Range;
 use core::prelude::v1::*;
 
+#[cfg(feature = "serde1")]
+use core::marker::PhantomData;
+#[cfg(feature = "serde1")]
+use serde::{
+    de::{Deserialize, Deserializer, SeqAccess, Visitor},
+    ser::{Serialize, Serializer},
+};
+
 /// A map whose keys are stored as (half-open) ranges bounded
 /// inclusively below and exclusively above `(start..end)`.
 ///
@@ -437,6 +445,77 @@ where
         iter.into_iter().for_each(move |(k, v)| {
             self.insert(k, v);
         })
+    }
+}
+
+#[cfg(feature = "serde1")]
+impl<K, V> Serialize for RangeMap<K, V>
+where
+    K: Ord + Clone + Serialize,
+    V: Eq + Clone + Serialize,
+{
+    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
+    where
+        S: Serializer,
+    {
+        use serde::ser::SerializeSeq;
+        let mut seq = serializer.serialize_seq(Some(self.btm.len()))?;
+        for (k, v) in self.iter() {
+            seq.serialize_element(&((&k.start, &k.end), &v))?;
+        }
+        seq.end()
+    }
+}
+
+#[cfg(feature = "serde1")]
+impl<'de, K, V> Deserialize<'de> for RangeMap<K, V>
+where
+    K: Ord + Clone + Deserialize<'de>,
+    V: Eq + Clone + Deserialize<'de>,
+{
+    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
+    where
+        D: Deserializer<'de>,
+    {
+        deserializer.deserialize_seq(RangeMapVisitor::new())
+    }
+}
+
+#[cfg(feature = "serde1")]
+struct RangeMapVisitor<K, V> {
+    marker: PhantomData<fn() -> RangeMap<K, V>>,
+}
+
+#[cfg(feature = "serde1")]
+impl<K, V> RangeMapVisitor<K, V> {
+    fn new() -> Self {
+        RangeMapVisitor {
+            marker: PhantomData,
+        }
+    }
+}
+
+#[cfg(feature = "serde1")]
+impl<'de, K, V> Visitor<'de> for RangeMapVisitor<K, V>
+where
+    K: Ord + Clone + Deserialize<'de>,
+    V: Eq + Clone + Deserialize<'de>,
+{
+    type Value = RangeMap<K, V>;
+
+    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
+        formatter.write_str("RangeMap")
+    }
+
+    fn visit_seq<A>(self, mut access: A) -> Result<Self::Value, A::Error>
+    where
+        A: SeqAccess<'de>,
+    {
+        let mut range_map = RangeMap::new();
+        while let Some(((start, end), value)) = access.next_element()? {
+            range_map.insert(start..end, value);
+        }
+        Ok(range_map)
     }
 }
 
@@ -1091,5 +1170,33 @@ mod tests {
 
         // Equality
         assert_eq!(cloned, consumed);
+    }
+
+    // impl Serialize
+
+    #[cfg(feature = "serde1")]
+    #[test]
+    fn serialization() {
+        let mut range_map: RangeMap<u32, bool> = RangeMap::new();
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◆---◇ ◌ ◌ ◌ ◌ ◌ ◌
+        range_map.insert(1..3, false);
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ◌ ◌ ◆---◇ ◌ ◌
+        range_map.insert(5..7, true);
+        let output = serde_json::to_string(&range_map).expect("Failed to serialize");
+        assert_eq!(output, "[[[1,3],false],[[5,7],true]]");
+    }
+
+    // impl Deserialize
+
+    #[cfg(feature = "serde1")]
+    #[test]
+    fn deserialization() {
+        let input = "[[[1,3],false],[[5,7],true]]";
+        let range_map: RangeMap<u32, bool> =
+            serde_json::from_str(input).expect("Failed to deserialize");
+        let reserialized = serde_json::to_string(&range_map).expect("Failed to re-serialize");
+        assert_eq!(reserialized, input);
     }
 }
