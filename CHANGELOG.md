@@ -1,3 +1,9 @@
+### v0.1.13 (2021-08-25)
+
+- **Features**:
+    - Add serde support.
+
+
 ### v0.1.12 (2021-08-23)
 
 - **Features**:

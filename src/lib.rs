@@ -86,6 +86,22 @@ for (range, person) in roster.iter() {
 ```
 
 
+## Crate features
+
+By default this crate has no dependencies on other crates.
+
+If you enable the **serde1** feature it will introduce a dependency on
+the _serde_ crate and provide `Serialize` and `Deserialize`
+implementations for all map and set types in this crate.
+
+You can enable the **serde1** feature in your _Cargo.toml_ file like so:
+
+```toml
+[dependencies]
+rangemap = { version = "0.1.13", features = ["serde1"] }
+```
+
+
 ## Building without the Rust standard library
 
 This crate can work without the full standard library available
