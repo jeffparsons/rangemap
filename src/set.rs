@@ -56,8 +56,10 @@ where
 
     /// Gets an ordered iterator over all ranges,
     /// ordered by range.
-    pub fn iter(&self) -> impl Iterator<Item = &Range<T>> {
-        self.rm.iter().map(|(range, _v)| range)
+    pub fn iter(&self) -> Iter<'_, T> {
+        Iter {
+            inner: self.rm.iter()
+        }
     }
 
     /// Insert a range into the set.
@@ -98,6 +100,22 @@ where
         Gaps {
             inner: self.rm.gaps(outer_range),
         }
+    }
+}
+
+pub struct Iter<'a, T> {
+    inner: super::map::Iter<'a, T, ()>,
+}
+
+impl<'a, T> Iterator for Iter<'a, T> {
+    type Item = &'a Range<T>;
+
+    fn next(&mut self) -> Option<&'a Range<T>> {
+        self.inner.next().map(|(range, _)| range)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
     }
 }
 

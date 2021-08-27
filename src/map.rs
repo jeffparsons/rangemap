@@ -82,8 +82,10 @@ where
     /// ordered by key range.
     ///
     /// The iterator element type is `(&'a Range<K>, &'a V)`.
-    pub fn iter(&self) -> impl Iterator<Item = (&Range<K>, &V)> {
-        self.btm.iter().map(|(by_start, v)| (&by_start.range, v))
+    pub fn iter(&self) -> Iter<'_, K, V> {
+        Iter {
+            inner: self.btm.iter(),
+        }
     }
 
     /// Insert a pair of key range and value into the map.
@@ -386,6 +388,26 @@ where
             keys,
             candidate_start,
         }
+    }
+}
+
+pub struct Iter<'a, K, V> {
+    inner: alloc::collections::btree_map::Iter<'a, RangeStartWrapper<K>, V>,
+}
+
+impl<'a, K, V> Iterator for Iter<'a, K, V>
+where
+    K: 'a,
+    V: 'a,
+{
+    type Item = (&'a Range<K>, &'a V);
+
+    fn next(&mut self) -> Option<(&'a Range<K>, &'a V)> {
+        self.inner.next().map(|(by_start, v)| (&by_start.range, v))
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
     }
 }
 
