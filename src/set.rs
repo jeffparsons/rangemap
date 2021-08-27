@@ -104,6 +104,7 @@ where
 pub struct IntoIter<T> {
     inner: super::map::IntoIter<T, ()>,
 }
+
 impl<T> IntoIterator for RangeSet<T> {
     type Item = Range<T>;
     type IntoIter = IntoIter<T>;
@@ -113,6 +114,7 @@ impl<T> IntoIterator for RangeSet<T> {
         }
     }
 }
+
 impl<T> Iterator for IntoIter<T> {
     type Item = Range<T>;
     fn next(&mut self) -> Option<Range<T>> {

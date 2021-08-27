@@ -392,6 +392,7 @@ where
 pub struct IntoIter<K, V> {
     inner: alloc::collections::btree_map::IntoIter<RangeStartWrapper<K>, V>,
 }
+
 impl<K, V> IntoIterator for RangeMap<K, V> {
     type Item = (Range<K>, V);
     type IntoIter = IntoIter<K, V>;
@@ -401,6 +402,7 @@ impl<K, V> IntoIterator for RangeMap<K, V> {
         }
     }
 }
+
 impl<K, V> Iterator for IntoIter<K, V> {
     type Item = (Range<K>, V);
     fn next(&mut self) -> Option<(Range<K>, V)> {

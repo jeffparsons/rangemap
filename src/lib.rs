@@ -131,11 +131,12 @@ book for general information about operating without the standard library.
 #![no_std]
 extern crate alloc;
 
-mod inclusive_map;
-mod inclusive_set;
-mod map;
+pub mod inclusive_map;
+pub mod inclusive_set;
+pub mod map;
+pub mod set;
+
 mod range_wrapper;
-mod set;
 mod std_ext;
 #[cfg(test)]
 mod stupid_range_map;

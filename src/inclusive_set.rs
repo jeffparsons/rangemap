@@ -128,6 +128,7 @@ where
 pub struct IntoIter<T> {
     inner: super::inclusive_map::IntoIter<T, ()>,
 }
+
 impl<T> IntoIterator for RangeInclusiveSet<T> {
     type Item = RangeInclusive<T>;
     type IntoIter = IntoIter<T>;
@@ -137,6 +138,7 @@ impl<T> IntoIterator for RangeInclusiveSet<T> {
         }
     }
 }
+
 impl<T> Iterator for IntoIter<T> {
     type Item = RangeInclusive<T>;
     fn next(&mut self) -> Option<RangeInclusive<T>> {
