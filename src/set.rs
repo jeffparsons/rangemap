@@ -58,7 +58,7 @@ where
     /// ordered by range.
     pub fn iter(&self) -> Iter<'_, T> {
         Iter {
-            inner: self.rm.iter()
+            inner: self.rm.iter(),
         }
     }
 
