@@ -86,8 +86,19 @@ where
 /// for details about that stabilization process.
 pub trait StepLite {
     /// Returns the _successor_ of `self`.
+    ///
+    /// If this would overflow the range of values supported by `Self`,
+    /// this function is allowed to panic, wrap, or saturate.
+    /// The suggested behavior is to panic when debug assertions are enabled,
+    /// and to wrap or saturate otherwise.
     fn add_one(&self) -> Self;
+
     /// Returns the _predecessor_ of `self`.
+    ///
+    /// If this would overflow the range of values supported by `Self`,
+    /// this function is allowed to panic, wrap, or saturate.
+    /// The suggested behavior is to panic when debug assertions are enabled,
+    /// and to wrap or saturate otherwise.
     fn sub_one(&self) -> Self;
 }
 
@@ -135,8 +146,19 @@ impl_step_lite!(usize u8 u16 u32 u64 u128 i8 i16 i32 i64 i128);
 /// fall back to `StepFns` when dealing with foreign types.
 pub trait StepFns<T> {
     /// Returns the _successor_ of value `start`.
+    ///
+    /// If this would overflow the range of values supported by `Self`,
+    /// this function is allowed to panic, wrap, or saturate.
+    /// The suggested behavior is to panic when debug assertions are enabled,
+    /// and to wrap or saturate otherwise.
     fn add_one(start: &T) -> T;
+
     /// Returns the _predecessor_ of value `start`.
+    ///
+    /// If this would overflow the range of values supported by `Self`,
+    /// this function is allowed to panic, wrap, or saturate.
+    /// The suggested behavior is to panic when debug assertions are enabled,
+    /// and to wrap or saturate otherwise.
     fn sub_one(start: &T) -> T;
 }
 
