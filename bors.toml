@@ -1,2 +1,2 @@
-status = [ "CI" ]
+status = [ "ci" ]
 timeout_sec = 3600 # One hour

@@ -52,3 +52,12 @@ jobs:
         with:
           command: test
           args: --features nightly
+  ci-success:
+    name: ci
+    if: ${{ success() }}
+    needs:
+      - test
+    runs-on: ubuntu-20.04
+    steps:
+      - name: CI succeeded
+        run: exit 0
