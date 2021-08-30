@@ -2,8 +2,9 @@ name: CI
 
 on:
   push:
-    branches: [ master ]
+    branches: [master, staging, trying]
   pull_request:
+    branches: [main]
 
 env:
   CARGO_TERM_COLOR: always
@@ -29,9 +30,9 @@ jobs:
       - name: install toolchain
         uses: actions-rs/toolchain@v1
         with:
-            toolchain: ${{ matrix.toolchain }}
-            default: true
-            profile: minimal
+          toolchain: ${{ matrix.toolchain }}
+          default: true
+          profile: minimal
       - name: stable test without serde
         uses: actions-rs/cargo@v1
         if: matrix.toolchain != 'nightly'
@@ -51,3 +52,12 @@ jobs:
         with:
           command: test
           args: --features nightly
+  ci-success:
+    name: ci
+    if: ${{ success() }}
+    needs:
+      - test
+    runs-on: ubuntu-20.04
+    steps:
+      - name: CI succeeded
+        run: exit 0
