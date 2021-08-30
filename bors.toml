@@ -1,0 +1,2 @@
+status = [ "test" ]
+timeout_sec = 3600 # One hour
