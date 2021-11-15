@@ -127,6 +127,12 @@ where
     }
 }
 
+/// An iterator over the ranges of a `RangeInclusiveSet`.
+///
+/// This `struct` is created by the [`iter`] method on [`RangeInclusiveSet`]. See its
+/// documentation for more.
+///
+/// [`iter`]: RangeInclusiveSet::iter
 pub struct Iter<'a, T> {
     inner: super::inclusive_map::Iter<'a, T, ()>,
 }
@@ -143,6 +149,12 @@ impl<'a, T> Iterator for Iter<'a, T> {
     }
 }
 
+/// An owning iterator over the ranges of a `RangeInclusiveSet`.
+///
+/// This `struct` is created by the [`into_iter`] method on [`RangeInclusiveSet`]
+/// (provided by the `IntoIterator` trait). See its documentation for more.
+///
+/// [`into_iter`]: IntoIterator::into_iter
 pub struct IntoIter<T> {
     inner: super::inclusive_map::IntoIter<T, ()>,
 }
@@ -269,6 +281,12 @@ where
     }
 }
 
+/// An iterator over all ranges not covered by a `RangeInclusiveSet`.
+///
+/// This `struct` is created by the [`gaps`] method on [`RangeInclusiveSet`]. See its
+/// documentation for more.
+///
+/// [`gaps`]: RangeInclusiveSet::gaps
 pub struct Gaps<'a, T, StepFnsT> {
     inner: crate::inclusive_map::Gaps<'a, T, (), StepFnsT>,
 }

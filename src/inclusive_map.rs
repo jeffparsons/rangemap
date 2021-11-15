@@ -482,6 +482,14 @@ where
     }
 }
 
+/// An iterator over the entries of a `RangeInclusiveMap`, ordered by key range.
+///
+/// The iterator element type is `(&'a RangeInclusive<K>, &'a V)`.
+///
+/// This `struct` is created by the [`iter`] method on [`RangeInclusiveMap`]. See its
+/// documentation for more.
+///
+/// [`iter`]: RangeInclusiveMap::iter
 pub struct Iter<'a, K, V> {
     inner: alloc::collections::btree_map::Iter<'a, RangeInclusiveStartWrapper<K>, V>,
 }
@@ -502,6 +510,14 @@ where
     }
 }
 
+/// An owning iterator over the entries of a `RangeInclusiveMap`, ordered by key range.
+///
+/// The iterator element type is `(RangeInclusive<K>, V)`.
+///
+/// This `struct` is created by the [`into_iter`] method on [`RangeInclusiveMap`]
+/// (provided by the `IntoIterator` trait). See its documentation for more.
+///
+/// [`into_iter`]: IntoIterator::into_iter
 pub struct IntoIter<K, V> {
     inner: alloc::collections::btree_map::IntoIter<RangeInclusiveStartWrapper<K>, V>,
 }
@@ -634,6 +650,14 @@ where
     }
 }
 
+/// An iterator over all ranges not covered by a `RangeInclusiveMap`.
+///
+/// The iterator element type is `RangeInclusive<K>`.
+///
+/// This `struct` is created by the [`gaps`] method on [`RangeInclusiveMap`]. See its
+/// documentation for more.
+///
+/// [`gaps`]: RangeInclusiveMap::gaps
 pub struct Gaps<'a, K, V, StepFnsT> {
     /// Would be redundant, but we need an extra flag to
     /// avoid overflowing when dealing with inclusive ranges.
