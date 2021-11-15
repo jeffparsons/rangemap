@@ -391,6 +391,14 @@ where
     }
 }
 
+/// An iterator over the entries of a `RangeMap`, ordered by key range.
+///
+/// The iterator element type is `(&'a Range<K>, &'a V)`.
+///
+/// This `struct` is created by the [`iter`] method on [`RangeMap`]. See its
+/// documentation for more.
+///
+/// [`iter`]: RangeMap::iter
 pub struct Iter<'a, K, V> {
     inner: alloc::collections::btree_map::Iter<'a, RangeStartWrapper<K>, V>,
 }
@@ -411,6 +419,14 @@ where
     }
 }
 
+/// An owning iterator over the entries of a `RangeMap`, ordered by key range.
+///
+/// The iterator element type is `(Range<K>, V)`.
+///
+/// This `struct` is created by the [`into_iter`] method on [`RangeMap`]
+/// (provided by the `IntoIterator` trait). See its documentation for more.
+///
+/// [`into_iter`]: IntoIterator::into_iter
 pub struct IntoIter<K, V> {
     inner: alloc::collections::btree_map::IntoIter<RangeStartWrapper<K>, V>,
 }
@@ -543,6 +559,14 @@ where
     }
 }
 
+/// An iterator over all ranges not covered by a `RangeMap`.
+///
+/// The iterator element type is `Range<K>`.
+///
+/// This `struct` is created by the [`gaps`] method on [`RangeMap`]. See its
+/// documentation for more.
+///
+/// [`gaps`]: RangeMap::gaps
 pub struct Gaps<'a, K, V> {
     outer_range: &'a Range<K>,
     keys: core::iter::Peekable<alloc::collections::btree_map::Keys<'a, RangeStartWrapper<K>, V>>,

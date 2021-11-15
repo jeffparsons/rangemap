@@ -103,6 +103,12 @@ where
     }
 }
 
+/// An iterator over the ranges of a `RangeSet`.
+///
+/// This `struct` is created by the [`iter`] method on [`RangeSet`]. See its
+/// documentation for more.
+///
+/// [`iter`]: RangeSet::iter
 pub struct Iter<'a, T> {
     inner: super::map::Iter<'a, T, ()>,
 }
@@ -119,6 +125,12 @@ impl<'a, T> Iterator for Iter<'a, T> {
     }
 }
 
+/// An owning iterator over the ranges of a `RangeSet`.
+///
+/// This `struct` is created by the [`into_iter`] method on [`RangeSet`]
+/// (provided by the `IntoIterator` trait). See its documentation for more.
+///
+/// [`into_iter`]: IntoIterator::into_iter
 pub struct IntoIter<T> {
     inner: super::map::IntoIter<T, ()>,
 }
@@ -245,6 +257,12 @@ where
     }
 }
 
+/// An iterator over all ranges not covered by a `RangeSet`.
+///
+/// This `struct` is created by the [`gaps`] method on [`RangeSet`]. See its
+/// documentation for more.
+///
+/// [`gaps`]: RangeSet::gaps
 pub struct Gaps<'a, T> {
     inner: crate::map::Gaps<'a, T, ()>,
 }
