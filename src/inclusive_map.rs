@@ -300,7 +300,7 @@ where
             .filter(|(stored_range_start_wrapper, _stored_value)| {
                 // Does the only candidate range overlap
                 // the range to insert?
-                stored_range_start_wrapper.range.overlaps(&range)
+                stored_range_start_wrapper.range.overlaps(range)
             })
             .map(|(stored_range_start_wrapper, stored_value)| {
                 (stored_range_start_wrapper.clone(), stored_value.clone())
@@ -309,7 +309,7 @@ where
             self.adjust_overlapping_ranges_for_remove(
                 stored_range_start_wrapper,
                 stored_value,
-                &range,
+                range,
             );
         }
 
@@ -337,7 +337,7 @@ where
             self.adjust_overlapping_ranges_for_remove(
                 stored_range_start_wrapper,
                 stored_value,
-                &range,
+                range,
             );
         }
     }

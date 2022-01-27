@@ -84,7 +84,7 @@ where
     T: Ord,
 {
     fn cmp(&self, other: &RangeInclusiveStartWrapper<T>) -> Ordering {
-        self.range.start().cmp(&other.range.start())
+        self.range.start().cmp(other.range.start())
     }
 }
 
