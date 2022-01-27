@@ -1,3 +1,8 @@
+### v1.0.0 (2022-01-28)
+
+It's time. (No functional change.)
+
+
 ### v0.1.14 (2021-11-16)
 
 - **Features**:

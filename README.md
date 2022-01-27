@@ -106,7 +106,7 @@ You can enable the **serde1** feature in your _Cargo.toml_ file like so:
 
 ```toml
 [dependencies]
-rangemap = { version = "0.1.14", features = ["serde1"] }
+rangemap = { version = "1", features = ["serde1"] }
 ```
 
 
