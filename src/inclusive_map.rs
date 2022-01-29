@@ -449,7 +449,8 @@ where
             if item.range.end() < outer_range.start() {
                 // This range sits entirely before the start of
                 // the outer range; just skip it.
-                let _ = keys.next();
+                keys.next()
+                    .expect("We just checked that there is a next element");
             } else if item.range.start() <= outer_range.start() {
                 // This range overlaps the start of the
                 // outer range, so the first possible candidate
@@ -465,7 +466,8 @@ where
                 } else {
                     candidate_start = StepFnsT::add_one(item.range.end());
                 }
-                let _ = keys.next();
+                keys.next()
+                    .expect("We just checked that there is a next element");
             } else {
                 // The rest of the items might contribute to gaps.
                 break;
@@ -695,13 +697,13 @@ where
         }
 
         // Figure out where this gap ends.
-        let (end, next_candidate_start) = if let Some(item) = self.keys.next() {
-            if item.range.start() <= self.outer_range.end() {
+        let (end, mut next_candidate_start) = if let Some(next_item) = self.keys.next() {
+            if next_item.range.start() <= self.outer_range.end() {
                 // The gap goes up until just before the start of the next item,
                 // and the next candidate starts after it.
                 (
-                    StepFnsT::sub_one(item.range.start()),
-                    StepFnsT::add_one(item.range.end()),
+                    StepFnsT::sub_one(next_item.range.start()),
+                    StepFnsT::add_one(next_item.range.end()),
                 )
             } else {
                 // The item sits after the end of the outer range,
@@ -725,6 +727,28 @@ where
                 self.candidate_start.clone(),
             )
         };
+
+        if !self.done {
+            // Find the start of the next gap.
+            while let Some(next_item) = self.keys.peek() {
+                if *next_item.range.start() == next_candidate_start {
+                    // There's another item at the start of our candidate range.
+                    // Gaps can't have zero width, so skip to the end of this
+                    // item and try again.
+                    if next_item.range.start() == self.outer_range.end() {
+                        // There are no more gaps; avoid trying to find successor
+                        // so we don't overflow.
+                        self.done = true;
+                    } else {
+                        next_candidate_start = StepFnsT::add_one(next_item.range.end());
+                        self.keys.next().expect("We just checked that this exists");
+                    }
+                } else {
+                    // We found an item that actually has a gap before it.
+                    break;
+                }
+            }
+        }
 
         // Move the next candidate gap start past the end
         // of this gap, and yield the gap we found.
@@ -1315,6 +1339,31 @@ mod tests {
         let outer_range = 4..=4;
         let mut gaps = range_map.gaps(&outer_range);
         // Should yield no gaps.
+        assert_eq!(gaps.next(), None);
+        // Gaps iterator should be fused.
+        assert_eq!(gaps.next(), None);
+        assert_eq!(gaps.next(), None);
+    }
+
+    #[test]
+    fn no_empty_gaps() {
+        // Make two ranges different values so they don't
+        // get coalesced.
+        let mut range_map: RangeInclusiveMap<u32, bool> = RangeInclusiveMap::new();
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ◌ ◆-◆ ◌ ◌ ◌ ◌
+        range_map.insert(4..=5, true);
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◆-◆ ◌ ◌ ◌ ◌ ◌ ◌
+        range_map.insert(2..=3, false);
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ●-------------● ◌
+        let outer_range = 1..=8;
+        let mut gaps = range_map.gaps(&outer_range);
+        // Should yield gaps at start and end, but not between the
+        // two touching items.
+        assert_eq!(gaps.next(), Some(1..=1));
+        assert_eq!(gaps.next(), Some(6..=8));
         assert_eq!(gaps.next(), None);
         // Gaps iterator should be fused.
         assert_eq!(gaps.next(), None);

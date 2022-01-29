@@ -590,11 +590,11 @@ where
         }
 
         // Figure out where this gap ends.
-        let (end, next_candidate_start) = if let Some(item) = self.keys.next() {
-            if item.range.start < self.outer_range.end {
+        let (gap_end, mut next_candidate_start) = if let Some(next_item) = self.keys.next() {
+            if next_item.range.start < self.outer_range.end {
                 // The gap goes up until the start of the next item,
                 // and the next candidate starts after it.
-                (&item.range.start, &item.range.end)
+                (&next_item.range.start, &next_item.range.end)
             } else {
                 // The item sits after the end of the outer range,
                 // so this gap ends at the end of the outer range.
@@ -608,9 +608,23 @@ where
             (&self.outer_range.end, &self.outer_range.end)
         };
 
+        // Find the start of the next gap.
+        while let Some(next_item) = self.keys.peek() {
+            if next_item.range.start == *next_candidate_start {
+                // There's another item at the start of our candidate range.
+                // Gaps can't have zero width, so skip to the end of this
+                // item and try again.
+                next_candidate_start = &next_item.range.end;
+                self.keys.next().expect("We just checked that this exists");
+            } else {
+                // We found an item that actually has a gap before it.
+                break;
+            }
+        }
+
         // Move the next candidate gap start past the end
         // of this gap, and yield the gap we found.
-        let gap = self.candidate_start.clone()..end.clone();
+        let gap = self.candidate_start.clone()..gap_end.clone();
         self.candidate_start = next_candidate_start;
         Some(gap)
     }
@@ -1174,6 +1188,31 @@ mod tests {
         let outer_range = 4..4;
         let mut gaps = range_map.gaps(&outer_range);
         // Should yield no gaps.
+        assert_eq!(gaps.next(), None);
+        // Gaps iterator should be fused.
+        assert_eq!(gaps.next(), None);
+        assert_eq!(gaps.next(), None);
+    }
+
+    #[test]
+    fn no_empty_gaps() {
+        // Make two ranges different values so they don't
+        // get coalesced.
+        let mut range_map: RangeMap<u32, bool> = RangeMap::new();
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ◌ ●-◌ ◌ ◌ ◌ ◌
+        range_map.insert(4..5, true);
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ●-◌ ◌ ◌ ◌ ◌ ◌
+        range_map.insert(3..4, false);
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◆-------------◇ ◌
+        let outer_range = 1..8;
+        let mut gaps = range_map.gaps(&outer_range);
+        // Should yield gaps at start and end, but not between the
+        // two touching items. (4 is covered, so there should be no gap.)
+        assert_eq!(gaps.next(), Some(1..3));
+        assert_eq!(gaps.next(), Some(5..8));
         assert_eq!(gaps.next(), None);
         // Gaps iterator should be fused.
         assert_eq!(gaps.next(), None);

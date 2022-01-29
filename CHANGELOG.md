@@ -1,3 +1,8 @@
+### v1.0.1 (2022-01-29)
+
+- **Fixes**:
+    - Fix empty gaps returned by `Gaps` iterator for `RangeMap`, and incorrect gaps returned by `Gaps` iterator for `RangeInclusiveMap`.
+
 ### v1.0.0 (2022-01-28)
 
 It's time. (No functional change.)
