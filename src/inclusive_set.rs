@@ -78,6 +78,18 @@ where
         self.rm.contains_key(value)
     }
 
+    /// Returns `true` if any part of the provided range overlaps with a range in the map.
+    #[inline]
+    pub fn contains_any<'a>(&self, range: &'a RangeInclusive<T>) -> bool {
+        self.range(range).next().is_some()
+    }
+
+    /// Returns `true` if all of the provided range is covered by ranges in the map.
+    #[inline]
+    pub fn contains_all<'a>(&self, range: &'a RangeInclusive<T>) -> bool {
+        self.gaps(range).next().is_none()
+    }
+
     /// Gets an ordered iterator over all ranges,
     /// ordered by range.
     pub fn iter(&self) -> Iter<'_, T> {
@@ -110,6 +122,13 @@ where
     /// Panics if range `start > end`.
     pub fn remove(&mut self, range: RangeInclusive<T>) {
         self.rm.remove(range);
+    }
+
+    /// Gets an iterator over all ranges that overlap with the provided range.
+    pub fn range<'a>(&'a self, range: &'a RangeInclusive<T>) -> RangeIter<'a, T> {
+        RangeIter {
+            inner: self.rm.range(range),
+        }
     }
 
     /// Gets an iterator over all the maximally-sized ranges
@@ -278,6 +297,33 @@ where
             range_inclusive_set.insert(start..=end);
         }
         Ok(range_inclusive_set)
+    }
+}
+
+/// An iterator over ranges of a `RangeInclusiveSet` that overlap with a specified range.
+///
+/// This `struct` is created by the [`range`] method on [`RangeInclusiveSet`]. See its
+/// documentation for more.
+///
+/// [`range`]: RangeInclusiveSet::range
+pub struct RangeIter<'a, T> {
+    inner: crate::inclusive_map::RangeIter<'a, T, ()>,
+}
+
+impl<'a, T> core::iter::FusedIterator for RangeIter<'a, T> where T: Ord + Clone {}
+
+impl<'a, T> Iterator for RangeIter<'a, T>
+where
+    T: 'a,
+{
+    type Item = &'a RangeInclusive<T>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next().map(|(range, _)| range)
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
     }
 }
 

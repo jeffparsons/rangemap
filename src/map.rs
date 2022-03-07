@@ -78,6 +78,18 @@ where
         self.get(key).is_some()
     }
 
+    /// Returns `true` if any part of the provided range overlaps with a range in the map.
+    #[inline]
+    pub fn contains_any<'a>(&self, range: &'a Range<K>) -> bool {
+        self.range(range).next().is_some()
+    }
+
+    /// Returns `true` if all of the provided range is covered by ranges in the map.
+    #[inline]
+    pub fn contains_all<'a>(&self, range: &'a Range<K>) -> bool {
+        self.gaps(range).next().is_none()
+    }
+
     /// Gets an iterator over all pairs of key range and value,
     /// ordered by key range.
     ///
@@ -353,6 +365,26 @@ where
         }
     }
 
+    /// Gets an iterator over all pairs of key range and value, where the key range overlaps with
+    /// the provided range.
+    ///
+    /// The iterator element type is `(&'a Range<K>, &'a V)`.
+    pub fn range<'a>(&'a self, range: &'a Range<K>) -> RangeIter<'a, K, V> {
+        use core::ops::Bound;
+
+        let start = self
+            .get_key_value(&range.start)
+            .map_or(&range.start, |(k, _v)| &k.start);
+        let end = &range.end;
+
+        RangeIter {
+            inner: self.btm.range((
+                Bound::Included(RangeStartWrapper::new(start.clone()..start.clone())),
+                Bound::Excluded(RangeStartWrapper::new(end.clone()..end.clone())),
+            )),
+        }
+    }
+
     /// Gets an iterator over all the maximally-sized ranges
     /// contained in `outer_range` that are not covered by
     /// any range stored in the map.
@@ -556,6 +588,36 @@ where
             range_map.insert(start..end, value);
         }
         Ok(range_map)
+    }
+}
+
+/// An iterator over entries of a `RangeMap` whose range overlaps with a specified range.
+///
+/// The iterator element type is `(&'a Range<K>, &'a V)`.
+///
+/// This `struct` is created by the [`range`] method on [`RangeMap`]. See its
+/// documentation for more.
+///
+/// [`range`]: RangeMap::range
+pub struct RangeIter<'a, K, V> {
+    inner: alloc::collections::btree_map::Range<'a, RangeStartWrapper<K>, V>,
+}
+
+impl<'a, K, V> core::iter::FusedIterator for RangeIter<'a, K, V> where K: Ord + Clone {}
+
+impl<'a, K, V> Iterator for RangeIter<'a, K, V>
+where
+    K: 'a,
+    V: 'a,
+{
+    type Item = (&'a Range<K>, &'a V);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next().map(|(by_start, v)| (&by_start.range, v))
+    }
+
+    fn size_hint(&self) -> (usize, Option<usize>) {
+        self.inner.size_hint()
     }
 }
 
