@@ -954,16 +954,17 @@ mod tests {
 
         ranges_with_values.permutation().for_each(|permutation| {
             let mut range_map: RangeInclusiveMap<u32, bool> = RangeInclusiveMap::new();
-            let mut stupid: DenseU32RangeMap<bool> = DenseU32RangeMap::new();
+            let mut dense: DenseU32RangeMap<bool> = DenseU32RangeMap::new();
 
             for (k, v) in permutation {
                 // Insert it into both maps.
                 range_map.insert(k.clone(), v);
-                stupid.insert(k, v);
+                dense.insert(k, v);
 
                 // At every step, both maps should contain the same stuff.
-                let stupid2: DenseU32RangeMap<bool> = range_map.clone().into();
-                assert_eq!(stupid, stupid2);
+                let sparse = range_map.to_vec();
+                let dense = dense.to_vec();
+                assert_eq!(sparse, dense);
             }
         });
     }

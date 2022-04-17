@@ -826,7 +826,7 @@ mod tests {
 
         ranges_with_values.permutation().for_each(|permutation| {
             let mut range_map: RangeMap<u32, bool> = RangeMap::new();
-            let mut stupid: DenseU32RangeMap<bool> = DenseU32RangeMap::new();
+            let mut dense: DenseU32RangeMap<bool> = DenseU32RangeMap::new();
 
             for (k, v) in permutation {
                 // Insert it into both maps.
@@ -834,11 +834,12 @@ mod tests {
                 // NOTE: Clippy's `range_minus_one` lint is a bit overzealous here,
                 // because we _can't_ pass an open-ended range to `insert`.
                 #[allow(clippy::range_minus_one)]
-                stupid.insert(k.start..=(k.end - 1), v);
+                dense.insert(k.start..=(k.end - 1), v);
 
                 // At every step, both maps should contain the same stuff.
-                let stupid2: DenseU32RangeMap<bool> = range_map.clone().into();
-                assert_eq!(stupid, stupid2);
+                let sparse = range_map.to_vec();
+                let dense = dense.to_end_exclusive_vec();
+                assert_eq!(sparse, dense);
             }
         });
     }
