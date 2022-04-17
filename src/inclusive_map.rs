@@ -934,7 +934,7 @@ mod tests {
     #[test]
     // Test every permutation of a bunch of touching and overlapping ranges.
     fn lots_of_interesting_ranges() {
-        use crate::stupid_range_map::StupidU32RangeMap;
+        use crate::dense::DenseU32RangeMap;
         use permutator::Permutation;
 
         let mut ranges_with_values = [
@@ -954,7 +954,7 @@ mod tests {
 
         ranges_with_values.permutation().for_each(|permutation| {
             let mut range_map: RangeInclusiveMap<u32, bool> = RangeInclusiveMap::new();
-            let mut stupid: StupidU32RangeMap<bool> = StupidU32RangeMap::new();
+            let mut stupid: DenseU32RangeMap<bool> = DenseU32RangeMap::new();
 
             for (k, v) in permutation {
                 // Insert it into both maps.
@@ -962,7 +962,7 @@ mod tests {
                 stupid.insert(k, v);
 
                 // At every step, both maps should contain the same stuff.
-                let stupid2: StupidU32RangeMap<bool> = range_map.clone().into();
+                let stupid2: DenseU32RangeMap<bool> = range_map.clone().into();
                 assert_eq!(stupid, stupid2);
             }
         });
