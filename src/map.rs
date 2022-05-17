@@ -357,36 +357,20 @@ where
     /// contained in `outer_range` that are not covered by
     /// any range stored in the map.
     ///
-    /// The iterator element type is `Range<K>`.
+    /// If the start and end of the outer range are the same
+    /// and it does not overlap any stored range, then a single
+    /// empty gap will be returned.
     ///
-    /// NOTE: Calling `gaps` eagerly finds the first gap,
-    /// even if the iterator is never consumed.
+    /// The iterator element type is `Range<K>`.
     pub fn gaps<'a>(&'a self, outer_range: &'a Range<K>) -> Gaps<'a, K, V> {
-        let mut keys = self.btm.keys().peekable();
-
-        // Find the first potential gap.
-        let mut candidate_start = &outer_range.start;
-        while let Some(item) = keys.peek() {
-            if item.range.end <= outer_range.start {
-                // This range sits entirely before the start of
-                // the outer range; just skip it.
-                let _ = keys.next();
-            } else if item.range.start <= outer_range.start {
-                // This range overlaps the start of the
-                // outer range, so the first possible candidate
-                // range begins at its end.
-                candidate_start = &item.range.end;
-                let _ = keys.next();
-            } else {
-                // The rest of the items might contribute to gaps.
-                break;
-            }
-        }
-
+        let keys = self.btm.keys().peekable();
         Gaps {
             outer_range,
             keys,
-            candidate_start,
+            // We'll start the candidate range at the start of the outer range
+            // without checking what's there. Each time we yield an item,
+            // we'll skip any ranges we find before the next gap.
+            candidate_start: &outer_range.start,
         }
     }
 }
@@ -583,50 +567,46 @@ where
     type Item = Range<K>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if *self.candidate_start >= self.outer_range.end {
-            // We've already passed the end of the outer range;
-            // there are no more gaps to find.
-            return None;
+        // Skip past any ranges to find the first value that might
+        // be the start of a gap.
+        while let Some(item) = self.keys.peek() {
+            if item.range.start <= *self.candidate_start {
+                // Next potential gap starts after this range, and at least as
+                // late as the start of the outer range.
+                self.candidate_start = &item.range.end;
+                // Adjust the start to at least the start of the outer range.
+                if *self.candidate_start < self.outer_range.start {
+                    self.candidate_start = &self.outer_range.start;
+                }
+                let _ = self.keys.next();
+            } else {
+                // There's a gap before this item!
+                let gap = if item.range.start <= self.outer_range.end {
+                    // It starts within the outer range; return the gap directly.
+                    self.candidate_start.clone()..item.range.start.clone()
+                } else {
+                    // Next item starts beyond the end of the outer range;
+                    // end our gap at the end of the outer range.
+                    self.candidate_start.clone()..self.outer_range.end.clone()
+                };
+                // Next potential gap starts after this range.
+                self.candidate_start = &item.range.end;
+                return Some(gap);
+            }
         }
 
-        // Figure out where this gap ends.
-        let (gap_end, mut next_candidate_start) = if let Some(next_item) = self.keys.next() {
-            if next_item.range.start < self.outer_range.end {
-                // The gap goes up until the start of the next item,
-                // and the next candidate starts after it.
-                (&next_item.range.start, &next_item.range.end)
-            } else {
-                // The item sits after the end of the outer range,
-                // so this gap ends at the end of the outer range.
-                // This also means there will be no more gaps.
-                (&self.outer_range.end, &self.outer_range.end)
-            }
+        // If we got this far, the only other gap that might be
+        // is at the end of the outer range.
+        if *self.candidate_start < self.outer_range.end {
+            // There's a gap at the end!
+            let gap = self.candidate_start.clone()..self.outer_range.end.clone();
+            // We're done; skip to the end so we don't try to find any more.
+            self.candidate_start = &self.outer_range.end;
+            Some(gap)
         } else {
-            // There's no next item; the end is at the
-            // end of the outer range.
-            // This also means there will be no more gaps.
-            (&self.outer_range.end, &self.outer_range.end)
-        };
-
-        // Find the start of the next gap.
-        while let Some(next_item) = self.keys.peek() {
-            if next_item.range.start == *next_candidate_start {
-                // There's another item at the start of our candidate range.
-                // Gaps can't have zero width, so skip to the end of this
-                // item and try again.
-                next_candidate_start = &next_item.range.end;
-                self.keys.next().expect("We just checked that this exists");
-            } else {
-                // We found an item that actually has a gap before it.
-                break;
-            }
+            // We got to the end; there can't be any more gaps.
+            None
         }
-
-        // Move the next candidate gap start past the end
-        // of this gap, and yield the gap we found.
-        let gap = self.candidate_start.clone()..gap_end.clone();
-        self.candidate_start = next_candidate_start;
-        Some(gap)
     }
 }
 
@@ -1151,8 +1131,8 @@ mod tests {
         // ◌ ◌ ◌ ◌ ◆ ◌ ◌ ◌ ◌ ◌
         let outer_range = 4..4;
         let mut gaps = range_map.gaps(&outer_range);
-        // Should yield no gaps.
-        assert_eq!(gaps.next(), None);
+        // Should yield a gap covering the zero-width outer range.
+        assert_eq!(gaps.next(), Some(4..4));
         // Gaps iterator should be fused.
         assert_eq!(gaps.next(), None);
         assert_eq!(gaps.next(), None);
@@ -1215,6 +1195,24 @@ mod tests {
         assert_eq!(gaps.next(), Some(1..3));
         assert_eq!(gaps.next(), Some(5..8));
         assert_eq!(gaps.next(), None);
+        // Gaps iterator should be fused.
+        assert_eq!(gaps.next(), None);
+        assert_eq!(gaps.next(), None);
+    }
+
+    #[test]
+    fn adjacent_small_items() {
+        // Items two items next to each other at the start, and at the end.
+        let mut range_map: RangeMap<u8, bool> = RangeMap::new();
+        range_map.insert(0..1, false);
+        range_map.insert(1..2, true);
+        range_map.insert(253..254, false);
+        range_map.insert(254..255, true);
+
+        let outer_range = 0..255;
+        let mut gaps = range_map.gaps(&outer_range);
+        // Should yield one big gap in the middle.
+        assert_eq!(gaps.next(), Some(2..253));
         // Gaps iterator should be fused.
         assert_eq!(gaps.next(), None);
         assert_eq!(gaps.next(), None);

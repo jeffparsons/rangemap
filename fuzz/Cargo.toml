@@ -31,3 +31,15 @@ name = "rangemap_inclusive_coalesce"
 path = "fuzz_targets/rangemap_inclusive_coalesce.rs"
 test = false
 doc = false
+
+[[bin]]
+name = "rangemap_gaps"
+path = "fuzz_targets/rangemap_gaps.rs"
+test = false
+doc = false
+
+[[bin]]
+name = "rangemap_inclusive_gaps"
+path = "fuzz_targets/rangemap_inclusive_gaps.rs"
+test = false
+doc = false

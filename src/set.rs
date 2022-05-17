@@ -92,10 +92,11 @@ where
     /// contained in `outer_range` that are not covered by
     /// any range stored in the set.
     ///
-    /// The iterator element type is `Range<T>`.
+    /// If the start and end of the outer range are the same
+    /// and it does not overlap any stored range, then a single
+    /// empty gap will be returned.
     ///
-    /// NOTE: Calling `gaps` eagerly finds the first gap,
-    /// even if the iterator is never consumed.
+    /// The iterator element type is `Range<T>`.
     pub fn gaps<'a>(&'a self, outer_range: &'a Range<T>) -> Gaps<'a, T> {
         Gaps {
             inner: self.rm.gaps(outer_range),

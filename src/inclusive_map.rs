@@ -432,53 +432,16 @@ where
     /// any range stored in the map.
     ///
     /// The iterator element type is `RangeInclusive<K>`.
-    ///
-    /// NOTE: Calling `gaps` eagerly finds the first gap,
-    /// even if the iterator is never consumed.
     pub fn gaps<'a>(&'a self, outer_range: &'a RangeInclusive<K>) -> Gaps<'a, K, V, StepFnsT> {
-        let mut keys = self.btm.keys().peekable();
-
-        // Find the first potential gap.
-        let mut candidate_start = outer_range.start().clone();
-        // We might be already done from the start,
-        // but not be able to represent it using
-        // `candidate_start` alone if we're at the end
-        // of the key domain.
-        let mut done = false;
-        while let Some(item) = keys.peek() {
-            if item.range.end() < outer_range.start() {
-                // This range sits entirely before the start of
-                // the outer range; just skip it.
-                keys.next()
-                    .expect("We just checked that there is a next element");
-            } else if item.range.start() <= outer_range.start() {
-                // This range overlaps the start of the
-                // outer range, so the first possible candidate
-                // range begins immediately after its end.
-                if item.range.end() >= outer_range.end() {
-                    // There's a risk of overflowing;
-                    // use our extra "done" flag to represent
-                    // that the iterator is already done.
-                    // (Don't worry about `candidate_start`
-                    // we'll ignore everything else if `done`
-                    // is `true`.)
-                    done = true;
-                } else {
-                    candidate_start = StepFnsT::add_one(item.range.end());
-                }
-                keys.next()
-                    .expect("We just checked that there is a next element");
-            } else {
-                // The rest of the items might contribute to gaps.
-                break;
-            }
-        }
-
+        let keys = self.btm.keys().peekable();
         Gaps {
-            done,
+            done: false,
             outer_range,
             keys,
-            candidate_start,
+            // We'll start the candidate range at the start of the outer range
+            // without checking what's there. Each time we yield an item,
+            // we'll skip any ranges we find before the next gap.
+            candidate_start: outer_range.start().clone(),
             _phantom: PhantomData,
         }
     }
@@ -696,65 +659,58 @@ where
             return None;
         }
 
-        // Figure out where this gap ends.
-        let (end, mut next_candidate_start) = if let Some(next_item) = self.keys.next() {
-            if next_item.range.start() <= self.outer_range.end() {
-                // The gap goes up until just before the start of the next item,
-                // and the next candidate starts after it.
-                (
-                    StepFnsT::sub_one(next_item.range.start()),
-                    StepFnsT::add_one(next_item.range.end()),
-                )
-            } else {
-                // The item sits after the end of the outer range,
-                // so this gap ends at the end of the outer range.
-                // This also means there will be no more gaps.
-                self.done = true;
-                (
-                    self.outer_range.end().clone(),
-                    // This value will be ignored.
-                    self.candidate_start.clone(),
-                )
-            }
-        } else {
-            // There's no next item; the end is at the
-            // end of the outer range.
-            // This also means there will be no more gaps.
-            self.done = true;
-            (
-                self.outer_range.end().clone(),
-                // This value will be ignored.
-                self.candidate_start.clone(),
-            )
-        };
-
-        if !self.done {
-            // Find the start of the next gap.
-            while let Some(next_item) = self.keys.peek() {
-                if *next_item.range.start() == next_candidate_start {
-                    // There's another item at the start of our candidate range.
-                    // Gaps can't have zero width, so skip to the end of this
-                    // item and try again.
-                    if next_item.range.start() == self.outer_range.end() {
-                        // There are no more gaps; avoid trying to find successor
-                        // so we don't overflow.
-                        self.done = true;
-                    } else {
-                        next_candidate_start = StepFnsT::add_one(next_item.range.end());
-                        self.keys.next().expect("We just checked that this exists");
-                    }
+        // Skip past any ranges to find the first value that might
+        // be the start of a gap.
+        while let Some(item) = self.keys.peek() {
+            if *item.range.start() <= self.candidate_start {
+                // Next potential gap starts after this range, and at least as
+                // late as the start of the outer range.
+                self.candidate_start = if item.range.end() < self.outer_range.start() {
+                    self.outer_range.start().clone()
+                } else if item.range.end() >= self.outer_range.end() {
+                    // We're done; there no more room for gaps.
+                    self.done = true;
+                    return None;
                 } else {
-                    // We found an item that actually has a gap before it.
-                    break;
+                    StepFnsT::add_one(item.range.end())
+                };
+                let _ = self.keys.next();
+            } else {
+                // There's a gap before this item!
+                let end = if item.range.start() <= self.outer_range.end() {
+                    // It starts within the outer range; return the gap directly.
+                    StepFnsT::sub_one(item.range.start())
+                } else {
+                    // Next item starts beyond the end of the outer range;
+                    // end our gap at the end of the outer range.
+                    self.outer_range.end().clone()
+                };
+                let gap = self.candidate_start.clone()..=end;
+                // Next potential gap starts after this range.
+                if gap.end() < self.outer_range.end() {
+                    // We can safely add one; there's at least one more element in the domain.
+                    self.candidate_start = StepFnsT::add_one(gap.end());
+                } else {
+                    // The gap went right up to the end of the outer range;
+                    // there can be no more gaps.
+                    self.done = true;
                 }
+                return Some(gap);
             }
         }
 
-        // Move the next candidate gap start past the end
-        // of this gap, and yield the gap we found.
-        let gap = self.candidate_start.clone()..=end;
-        self.candidate_start = next_candidate_start;
-        Some(gap)
+        // If we got this far, the only other gap that might be
+        // is at the end of the outer range.
+        if self.candidate_start <= *self.outer_range.end() {
+            // There's a gap at the end!
+            let gap = self.candidate_start.clone()..=self.outer_range.end().clone();
+            // We're done; don't try to find any more gaps.
+            self.done = true;
+            Some(gap)
+        } else {
+            // We got to the end; there can't be any more gaps.
+            None
+        }
     }
 }
 
@@ -1396,6 +1352,24 @@ mod tests {
         range_map.insert(1..=254, false);
         range_map.gaps(&(0..=5));
         range_map.gaps(&(250..=255));
+    }
+
+    #[test]
+    fn adjacent_unit_width_items() {
+        // Items two items next to each other at the start, and at the end.
+        let mut range_map: RangeInclusiveMap<u8, bool> = RangeInclusiveMap::new();
+        range_map.insert(0..=0, false);
+        range_map.insert(1..=1, true);
+        range_map.insert(254..=254, false);
+        range_map.insert(255..=255, true);
+
+        let outer_range = 0..=255;
+        let mut gaps = range_map.gaps(&outer_range);
+        // Should yield one big gap in the middle.
+        assert_eq!(gaps.next(), Some(2..=253));
+        // Gaps iterator should be fused.
+        assert_eq!(gaps.next(), None);
+        assert_eq!(gaps.next(), None);
     }
 
     ///

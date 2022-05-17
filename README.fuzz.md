@@ -7,4 +7,6 @@ Run one of these:
 ```
 cargo +nightly fuzz run rangemap_coalesce
 cargo +nightly fuzz run rangemap_inclusive_coalesce
+cargo +nightly fuzz run rangemap_gaps
+cargo +nightly fuzz run rangemap_inclusive_gaps
 ```
