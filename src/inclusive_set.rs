@@ -117,9 +117,6 @@ where
     /// any range stored in the set.
     ///
     /// The iterator element type is `RangeInclusive<T>`.
-    ///
-    /// NOTE: Calling `gaps` eagerly finds the first gap,
-    /// even if the iterator is never consumed.
     pub fn gaps<'a>(&'a self, outer_range: &'a RangeInclusive<T>) -> Gaps<'a, T, StepFnsT> {
         Gaps {
             inner: self.rm.gaps(outer_range),

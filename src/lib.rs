@@ -136,10 +136,10 @@ pub mod inclusive_set;
 pub mod map;
 pub mod set;
 
+#[cfg(test)]
+mod dense;
 mod range_wrapper;
 mod std_ext;
-#[cfg(test)]
-mod stupid_range_map;
 
 pub use inclusive_map::RangeInclusiveMap;
 pub use inclusive_set::RangeInclusiveSet;
