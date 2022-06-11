@@ -363,10 +363,9 @@ where
     ///
     /// The iterator element type is `Range<K>`.
     pub fn gaps<'a>(&'a self, outer_range: &'a Range<K>) -> Gaps<'a, K, V> {
-        let keys = self.btm.keys().peekable();
         Gaps {
             outer_range,
-            keys,
+            keys: self.btm.keys(),
             // We'll start the candidate range at the start of the outer range
             // without checking what's there. Each time we yield an item,
             // we'll skip any ranges we find before the next gap.
@@ -553,7 +552,7 @@ where
 /// [`gaps`]: RangeMap::gaps
 pub struct Gaps<'a, K, V> {
     outer_range: &'a Range<K>,
-    keys: core::iter::Peekable<alloc::collections::btree_map::Keys<'a, RangeStartWrapper<K>, V>>,
+    keys: alloc::collections::btree_map::Keys<'a, RangeStartWrapper<K>, V>,
     candidate_start: &'a K,
 }
 
@@ -567,36 +566,24 @@ where
     type Item = Range<K>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        // Skip past any ranges to find the first value that might
-        // be the start of a gap.
-        while let Some(item) = self.keys.peek() {
-            if item.range.start <= *self.candidate_start {
-                // Next potential gap starts after this range, and at least as
-                // late as the start of the outer range.
-                self.candidate_start = &item.range.end;
-                // Adjust the start to at least the start of the outer range.
-                if *self.candidate_start < self.outer_range.start {
-                    self.candidate_start = &self.outer_range.start;
-                }
-                let _ = self.keys.next();
-            } else {
-                // There's a gap before this item!
-                let gap = if item.range.start <= self.outer_range.end {
-                    // It starts within the outer range; return the gap directly.
-                    self.candidate_start.clone()..item.range.start.clone()
-                } else {
-                    // Next item starts beyond the end of the outer range;
-                    // end our gap at the end of the outer range.
-                    self.candidate_start.clone()..self.outer_range.end.clone()
-                };
-                // Next potential gap starts after this range.
-                self.candidate_start = &item.range.end;
+        for item in &mut self.keys {
+            let range = &item.range;
+            if range.end <= *self.candidate_start {
+                // We're already completely past it; ignore it.
+            } else if range.start <= *self.candidate_start {
+                // We're inside it; move past it.
+                self.candidate_start = &range.end;
+            } else if range.start < self.outer_range.end {
+                // It starts before the end of the outer range,
+                // so move past it and then yield a gap.
+                let gap = self.candidate_start.clone()..range.start.clone();
+                self.candidate_start = &range.end;
                 return Some(gap);
             }
         }
 
-        // If we got this far, the only other gap that might be
-        // is at the end of the outer range.
+        // Now that we've run out of items, the only other possible
+        // gap is at the end of the outer range.
         if *self.candidate_start < self.outer_range.end {
             // There's a gap at the end!
             let gap = self.candidate_start.clone()..self.outer_range.end.clone();
@@ -1131,10 +1118,9 @@ mod tests {
         // ◌ ◌ ◌ ◌ ◆ ◌ ◌ ◌ ◌ ◌
         let outer_range = 4..4;
         let mut gaps = range_map.gaps(&outer_range);
-        // Should yield a gap covering the zero-width outer range.
-        assert_eq!(gaps.next(), Some(4..4));
-        // Gaps iterator should be fused.
+        // Should not yield any gaps, because a zero-width outer range covers no values.
         assert_eq!(gaps.next(), None);
+        // Gaps iterator should be fused.
         assert_eq!(gaps.next(), None);
     }
 
