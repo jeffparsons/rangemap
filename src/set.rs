@@ -282,6 +282,7 @@ where
     }
 }
 
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -344,6 +345,537 @@ mod tests {
         assert_eq!(gaps.next(), None);
         assert_eq!(gaps.next(), None);
     }
+
+    #[test]
+    fn new_same_value_immediately_following_stored() {
+        let mut range_set: RangeSet<u32> = RangeSet::new();
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ●---◌ ◌ ◌ ◌ ◌ ◌ ◌
+        range_set.insert(1..3);
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ●---◌ ◌ ◌ ◌ ◌
+        range_set.insert(3..5);
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ●-------◌ ◌ ◌ ◌ ◌
+        assert_eq!(range_set.to_vec(), vec![(1..5)]);
+    }
+
+    #[test]
+    fn new_different_value_immediately_following_stored() {
+        let mut range_set: RangeSet<u32> = RangeSet::new();
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ●---◌ ◌ ◌ ◌ ◌ ◌ ◌
+        range_set.insert(1..3, );
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ◆---◇ ◌ ◌ ◌ ◌
+        range_set.insert(3..5 );
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ●---◌ ◌ ◌ ◌ ◌ ◌ ◌
+        // ◌ ◌ ◌ ◆---◇ ◌ ◌ ◌ ◌
+        assert_eq!(range_set.to_vec(), vec![(1..5)]);
+    }
+
+    #[test]
+    fn new_same_value_overlapping_end_of_stored() {
+        let mut range_set: RangeSet<u32> = RangeSet::new();
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ●-----◌ ◌ ◌ ◌ ◌ ◌
+        range_set.insert(1..4 );
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ●---◌ ◌ ◌ ◌ ◌
+        range_set.insert(3..5 );
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ●-------◌ ◌ ◌ ◌ ◌
+        assert_eq!(range_set.to_vec(), vec![(1..5)]);
+    }
+
+    #[test]
+    fn new_different_value_overlapping_end_of_stored() {
+        let mut range_set: RangeSet<u32> = RangeSet::new();
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ●-----◌ ◌ ◌ ◌ ◌ ◌
+        range_set.insert(1..4 );
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ◆---◇ ◌ ◌ ◌ ◌
+        range_set.insert(3..5 );
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ●---◌ ◌ ◌ ◌ ◌ ◌ ◌
+        // ◌ ◌ ◌ ◆---◇ ◌ ◌ ◌ ◌
+        assert_eq!(range_set.to_vec(), vec![(1..5)]);
+    }
+
+    #[test]
+    fn new_same_value_immediately_preceding_stored() {
+        let mut range_set: RangeSet<u32> = RangeSet::new();
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ●---◌ ◌ ◌ ◌ ◌
+        range_set.insert(3..5);
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ●---◌ ◌ ◌ ◌ ◌ ◌ ◌
+        range_set.insert(1..3);
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ●-------◌ ◌ ◌ ◌ ◌
+        assert_eq!(range_set.to_vec(), vec![(1..5)]);
+    }
+
+    #[test]
+    fn new_different_value_immediately_preceding_stored() {
+        let mut range_set: RangeSet<u32> = RangeSet::new();
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ◆---◇ ◌ ◌ ◌ ◌
+        range_set.insert(3..5 );
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ●---◌ ◌ ◌ ◌ ◌ ◌ ◌
+        range_set.insert(1..3);
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ●---◌ ◌ ◌ ◌ ◌ ◌ ◌
+        // ◌ ◌ ◌ ◆---◇ ◌ ◌ ◌ ◌
+        assert_eq!(range_set.to_vec(), vec![(1..5)]);
+    }
+
+
+    #[test]
+    fn new_same_value_wholly_inside_stored() {
+        let mut range_set: RangeSet<u32> = RangeSet::new();
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ●-------◌ ◌ ◌ ◌ ◌
+        range_set.insert(1..5);
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ●---◌ ◌ ◌ ◌ ◌ ◌ ◌
+        range_set.insert(2..4);
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ●-------◌ ◌ ◌ ◌ ◌
+        assert_eq!(range_set.to_vec(), vec![(1..5)]);
+    }
+
+    #[test]
+    fn new_different_value_wholly_inside_stored() {
+        let mut range_set: RangeSet<u32> = RangeSet::new();
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◆-------◇ ◌ ◌ ◌ ◌
+        range_set.insert(1..5);
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ●---◌ ◌ ◌ ◌ ◌ ◌ ◌
+        range_set.insert(2..4);
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ●-◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌
+        // ◌ ◌ ◆---◇ ◌ ◌ ◌ ◌ ◌
+        // ◌ ◌ ◌ ◌ ●-◌ ◌ ◌ ◌ ◌
+        assert_eq!(
+            range_set.to_vec(),
+            vec![(1..5)]
+        );
+    }    
+
+    #[test]
+    fn replace_at_end_of_existing_range_should_coalesce() {
+        let mut range_set: RangeSet<u32> = RangeSet::new();
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ●---◌ ◌ ◌ ◌ ◌ ◌ ◌
+        range_set.insert(1..3 );
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ●---◌ ◌ ◌ ◌ ◌
+        range_set.insert(3..5);
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ●---◌ ◌ ◌ ◌ ◌
+        range_set.insert(3..5);
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ●-------◌ ◌ ◌ ◌ ◌
+        assert_eq!(range_set.to_vec(), vec![1..5 ]);
+    }
+
+    // Omitted maps dense test.
+
+    //
+    // Get* tests
+    //
+
+    #[test]
+    fn get() {
+        let mut range_set: RangeSet<u32> = RangeSet::new();
+        range_set.insert(0..50 );
+        assert_eq!(range_set.get(&49), Some(&(0..50)));
+        assert_eq!(range_set.get(&50), None);
+    }
+
+    //
+    // Removal tests
+    //
+
+    #[test]
+    fn remove_from_empty_map() {
+        let mut range_set: RangeSet<u32> = RangeSet::new();
+        range_set.remove(0..50);
+        assert_eq!(range_set.to_vec(), vec![]);
+    }
+
+    #[test]
+    fn remove_non_covered_range_before_stored() {
+        let mut range_set: RangeSet<u32> = RangeSet::new();
+        range_set.insert(25..75);
+        range_set.remove(0..25);
+        assert_eq!(range_set.to_vec(), vec![(25..75)]);
+    }
+
+    #[test]
+    fn remove_non_covered_range_after_stored() {
+        let mut range_set: RangeSet<u32> = RangeSet::new();
+        range_set.insert(25..75);
+        range_set.remove(75..100);
+        assert_eq!(range_set.to_vec(), vec![(25..75)]);
+    }
+
+    #[test]
+    fn remove_overlapping_start_of_stored() {
+        let mut range_set: RangeSet<u32> = RangeSet::new();
+        range_set.insert(25..75);
+        range_set.remove(0..30);
+        assert_eq!(range_set.to_vec(), vec![(30..75)]);
+    }
+
+    #[test]
+    fn remove_middle_of_stored() {
+        let mut range_set: RangeSet<u32> = RangeSet::new();
+        range_set.insert(25..75);
+        range_set.remove(30..70);
+        assert_eq!(range_set.to_vec(), vec![(25..30), (70..75)]);
+    }
+
+        #[test]
+    fn remove_overlapping_end_of_stored() {
+        let mut range_set: RangeSet<u32> = RangeSet::new();
+        range_set.insert(25..75);
+        range_set.remove(70..100);
+        assert_eq!(range_set.to_vec(), vec![(25..70)]);
+    }
+
+    #[test]
+    fn remove_exactly_stored() {
+        let mut range_set: RangeSet<u32> = RangeSet::new();
+        range_set.insert(25..75);
+        range_set.remove(25..75);
+        assert_eq!(range_set.to_vec(), vec![]);
+    }
+    
+    #[test]
+    fn remove_superset_of_stored() {
+        let mut range_set: RangeSet<u32> = RangeSet::new();
+        range_set.insert(25..75);
+        range_set.remove(0..100);
+        assert_eq!(range_set.to_vec(), vec![]);
+    }
+
+    //
+    // Gaps tests
+    //
+    
+    #[test]
+    fn whole_range_is_a_gap() {
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌
+        let range_set: RangeSet<u32> = RangeSet::new();
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◆-------------◇ ◌
+        let outer_range = 1..8;
+        let mut gaps = range_set.gaps(&outer_range);
+        // Should yield the entire outer range.
+        assert_eq!(gaps.next(), Some(1..8));
+        assert_eq!(gaps.next(), None);
+        // Gaps iterator should be fused.
+        assert_eq!(gaps.next(), None);
+        assert_eq!(gaps.next(), None);
+    }
+
+    #[test]
+    fn whole_range_is_covered_exactly() {
+        let mut range_set: RangeSet<u32> = RangeSet::new();
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ●---------◌ ◌ ◌ ◌
+        range_set.insert(1..6);
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◆---------◇ ◌ ◌ ◌
+        let outer_range = 1..6;
+        let mut gaps = range_set.gaps(&outer_range);
+        // Should yield no gaps.
+        assert_eq!(gaps.next(), None);
+        // Gaps iterator should be fused.
+        assert_eq!(gaps.next(), None);
+        assert_eq!(gaps.next(), None);
+    }
+
+    #[test]
+    fn item_before_outer_range() {
+        let mut range_set: RangeSet<u32> = RangeSet::new();
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ●---◌ ◌ ◌ ◌ ◌ ◌ ◌
+        range_set.insert(1..3);
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ◌ ◌ ◆-----◇ ◌
+        let outer_range = 5..8;
+        let mut gaps = range_set.gaps(&outer_range);
+        // Should yield the entire outer range.
+        assert_eq!(gaps.next(), Some(5..8));
+        assert_eq!(gaps.next(), None);
+        // Gaps iterator should be fused.
+        assert_eq!(gaps.next(), None);
+        assert_eq!(gaps.next(), None);
+    }
+
+    #[test]
+    fn item_touching_start_of_outer_range() {
+        let mut range_set: RangeSet<u32> = RangeSet::new();
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ●-------◌ ◌ ◌ ◌ ◌
+        range_set.insert(1..5);
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ◌ ◌ ◆-----◇ ◌
+        let outer_range = 5..8;
+        let mut gaps = range_set.gaps(&outer_range);
+        // Should yield the entire outer range.
+        assert_eq!(gaps.next(), Some(5..8));
+        assert_eq!(gaps.next(), None);
+        // Gaps iterator should be fused.
+        assert_eq!(gaps.next(), None);
+        assert_eq!(gaps.next(), None);
+    }
+
+    #[test]
+    fn item_overlapping_start_of_outer_range() {
+        let mut range_set: RangeSet<u32> = RangeSet::new();
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ●---------◌ ◌ ◌ ◌
+        range_set.insert(1..6);
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ◌ ◌ ◆-----◇ ◌
+        let outer_range = 5..8;
+        let mut gaps = range_set.gaps(&outer_range);
+        // Should yield from the end of the stored item
+        // to the end of the outer range.
+        assert_eq!(gaps.next(), Some(6..8));
+        assert_eq!(gaps.next(), None);
+        // Gaps iterator should be fused.
+        assert_eq!(gaps.next(), None);
+        assert_eq!(gaps.next(), None);
+    }
+
+    #[test]
+    fn item_starting_at_start_of_outer_range() {
+        let mut range_set: RangeSet<u32> = RangeSet::new();
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ◌ ◌ ●-◌ ◌ ◌ ◌
+        range_set.insert(5..6);
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ◌ ◌ ◆-----◇ ◌
+        let outer_range = 5..8;
+        let mut gaps = range_set.gaps(&outer_range);
+        // Should yield from the item onwards.
+        assert_eq!(gaps.next(), Some(6..8));
+        assert_eq!(gaps.next(), None);
+        // Gaps iterator should be fused.
+        assert_eq!(gaps.next(), None);
+        assert_eq!(gaps.next(), None);
+    }
+
+    #[test]
+    fn items_floating_inside_outer_range() {
+        let mut range_set: RangeSet<u32> = RangeSet::new();
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ◌ ◌ ●-◌ ◌ ◌ ◌
+        range_set.insert(5..6);
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ●-◌ ◌ ◌ ◌ ◌ ◌
+        range_set.insert(3..4);
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◆-------------◇ ◌
+        let outer_range = 1..8;
+        let mut gaps = range_set.gaps(&outer_range);
+        // Should yield gaps at start, between items,
+        // and at end.
+        assert_eq!(gaps.next(), Some(1..3));
+        assert_eq!(gaps.next(), Some(4..5));
+        assert_eq!(gaps.next(), Some(6..8));
+        assert_eq!(gaps.next(), None);
+        // Gaps iterator should be fused.
+        assert_eq!(gaps.next(), None);
+        assert_eq!(gaps.next(), None);
+    }
+
+    #[test]
+    fn item_ending_at_end_of_outer_range() {
+        let mut range_set: RangeSet<u32> = RangeSet::new();
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ◌ ◌ ◌ ◌ ●-◌ ◌
+        range_set.insert(7..8);
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ◌ ◌ ◆-----◇ ◌
+        let outer_range = 5..8;
+        let mut gaps = range_set.gaps(&outer_range);
+        // Should yield from the start of the outer range
+        // up to the start of the stored item.
+        assert_eq!(gaps.next(), Some(5..7));
+        assert_eq!(gaps.next(), None);
+        // Gaps iterator should be fused.
+        assert_eq!(gaps.next(), None);
+        assert_eq!(gaps.next(), None);
+    }
+
+    #[test]
+    fn item_overlapping_end_of_outer_range() {
+        let mut range_set: RangeSet<u32> = RangeSet::new();
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ◌ ●---◌ ◌ ◌ ◌
+        range_set.insert(4..6);
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◆-----◇ ◌ ◌ ◌ ◌
+        let outer_range = 2..5;
+        let mut gaps = range_set.gaps(&outer_range);
+        // Should yield from the start of the outer range
+        // up to the start of the stored item.
+        assert_eq!(gaps.next(), Some(2..4));
+        assert_eq!(gaps.next(), None);
+        // Gaps iterator should be fused.
+        assert_eq!(gaps.next(), None);
+        assert_eq!(gaps.next(), None);
+    }
+
+    #[test]
+    fn item_touching_end_of_outer_range() {
+        let mut range_set: RangeSet<u32> = RangeSet::new();
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ◌ ●-------◌ ◌
+        range_set.insert(4..8);
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◆-----◇ ◌ ◌ ◌ ◌ ◌
+        let outer_range = 1..4;
+        let mut gaps = range_set.gaps(&outer_range);
+        // Should yield the entire outer range.
+        assert_eq!(gaps.next(), Some(1..4));
+        assert_eq!(gaps.next(), None);
+        // Gaps iterator should be fused.
+        assert_eq!(gaps.next(), None);
+        assert_eq!(gaps.next(), None);
+    }
+
+    #[test]
+    fn item_after_outer_range() {
+        let mut range_set: RangeSet<u32> = RangeSet::new();
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ◌ ◌ ◌ ●---◌ ◌
+        range_set.insert(6..7);
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◆-----◇ ◌ ◌ ◌ ◌ ◌
+        let outer_range = 1..4;
+        let mut gaps = range_set.gaps(&outer_range);
+        // Should yield the entire outer range.
+        assert_eq!(gaps.next(), Some(1..4));
+        assert_eq!(gaps.next(), None);
+        // Gaps iterator should be fused.
+        assert_eq!(gaps.next(), None);
+        assert_eq!(gaps.next(), None);
+    }
+
+    #[test]
+    fn empty_outer_range_with_items_away_from_both_sides() {
+        let mut range_set: RangeSet<u32> = RangeSet::new();
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◆---◇ ◌ ◌ ◌ ◌ ◌ ◌
+        range_set.insert(1..3);
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ◌ ◌ ◆---◇ ◌ ◌
+        range_set.insert(5..7);
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ◌ ◆ ◌ ◌ ◌ ◌ ◌
+        let outer_range = 4..4;
+        let mut gaps = range_set.gaps(&outer_range);
+        // Should yield a gap covering the zero-width outer range.
+        assert_eq!(gaps.next(), Some(4..4));
+        // Gaps iterator should be fused.
+        assert_eq!(gaps.next(), None);
+        assert_eq!(gaps.next(), None);
+    }
+
+    #[test]
+    fn empty_outer_range_with_items_touching_both_sides() {
+        let mut range_set: RangeSet<u32> = RangeSet::new();
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◆---◇ ◌ ◌ ◌ ◌ ◌ ◌
+        range_set.insert(2..4);
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ◌ ◆---◇ ◌ ◌ ◌
+        range_set.insert(4..6);
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ◌ ◆ ◌ ◌ ◌ ◌ ◌
+        let outer_range = 4..4;
+        let mut gaps = range_set.gaps(&outer_range);
+        // Should yield no gaps.
+        assert_eq!(gaps.next(), None);
+        // Gaps iterator should be fused.
+        assert_eq!(gaps.next(), None);
+        assert_eq!(gaps.next(), None);
+    }
+
+    #[test]
+    fn empty_outer_range_with_item_straddling() {
+        let mut range_set: RangeSet<u32> = RangeSet::new();
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◆-----◇ ◌ ◌ ◌ ◌ ◌
+        range_set.insert(2..5);
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ◌ ◆ ◌ ◌ ◌ ◌ ◌
+        let outer_range = 4..4;
+        let mut gaps = range_set.gaps(&outer_range);
+        // Should yield no gaps.
+        assert_eq!(gaps.next(), None);
+        // Gaps iterator should be fused.
+        assert_eq!(gaps.next(), None);
+        assert_eq!(gaps.next(), None);
+    }
+
+    #[test]
+    fn no_empty_gaps() {
+        // Make two ranges different values so they don't
+        // get coalesced.
+        let mut range_set: RangeSet<u32> = RangeSet::new();
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ◌ ●-◌ ◌ ◌ ◌ ◌
+        range_set.insert(4..5 );
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ●-◌ ◌ ◌ ◌ ◌ ◌
+        range_set.insert(3..4);
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◆-------------◇ ◌
+        let outer_range = 1..8;
+        let mut gaps = range_set.gaps(&outer_range);
+        // Should yield gaps at start and end, but not between the
+        // two touching items. (4 is covered, so there should be no gap.)
+        assert_eq!(gaps.next(), Some(1..3));
+        assert_eq!(gaps.next(), Some(5..8));
+        assert_eq!(gaps.next(), None);
+        // Gaps iterator should be fused.
+        assert_eq!(gaps.next(), None);
+        assert_eq!(gaps.next(), None);
+    }
+
+    #[test]
+    fn adjacent_small_items() {
+        // Items two items next to each other at the start, and at the end.
+        let mut range_set: RangeSet<u32> = RangeSet::new();
+        range_set.insert(0..1);
+        range_set.insert(1..2);
+        range_set.insert(253..254);
+        range_set.insert(254..255);
+
+        let outer_range = 0..255;
+        let mut gaps = range_set.gaps(&outer_range);
+        // Should yield one big gap in the middle.
+        assert_eq!(gaps.next(), Some(2..253));
+        // Gaps iterator should be fused.
+        assert_eq!(gaps.next(), None);
+        assert_eq!(gaps.next(), None);
+    }
+
+
+
     ///
     /// impl Debug
     ///
