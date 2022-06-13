@@ -1204,22 +1204,22 @@ mod tests {
         assert_eq!(gaps.next(), None);
     }
 
-   // This test fails in v1.0.2
-   #[test]
-   fn outer_range_lies_within_first_of_two_stored_ranges() {
+    // This test fails in v1.0.2
+    #[test]
+    fn outer_range_lies_within_first_of_two_stored_ranges() {
         let mut range_map: RangeMap<u64, ()> = RangeMap::new();
         // 0 1 2 3 4 5 6 7 8 9
-        // ◆----------◇ ◌ ◌ ◌ ◌ 
+        // ◆----------◇ ◌ ◌ ◌ ◌
         range_map.insert(0..5, ());
         // 0 1 2 3 4 5 6 7 8 9
-        // ◌ ◌ ◌ ◌◌ ◌ ◆---◇ ◌  
+        // ◌ ◌ ◌ ◌◌ ◌ ◆---◇ ◌
         range_map.insert(6..8, ());
         // 0 1 2 3 4 5 6 7 8 9
-        // ◌ ◆--◇ ◌  ◌  ◌  ◌  ◌  
-       let outer_range: Range<u64> = 1..3;
-       let mut gaps = range_map.gaps(&outer_range);
+        // ◌ ◆--◇ ◌  ◌  ◌  ◌  ◌
+        let outer_range: Range<u64> = 1..3;
+        let mut gaps = range_map.gaps(&outer_range);
         assert_eq!(gaps.next(), None);
-   }
+    }
 
     ///
     /// impl Debug
