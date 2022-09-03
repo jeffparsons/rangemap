@@ -42,6 +42,15 @@ where
     V: Eq + Clone,
 {
     /// Makes a new empty `RangeMap`.
+    #[cfg(feature = "const_fn")]
+    pub const fn new() -> Self {
+        RangeMap {
+            btm: BTreeMap::new(),
+        }
+    }
+
+    /// Makes a new empty `RangeMap`.
+    #[cfg(not(feature = "const_fn"))]
     pub fn new() -> Self {
         RangeMap {
             btm: BTreeMap::new(),

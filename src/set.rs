@@ -38,6 +38,15 @@ where
     T: Ord + Clone,
 {
     /// Makes a new empty `RangeSet`.
+    #[cfg(feature = "const_fn")]
+    pub const fn new() -> Self {
+        RangeSet {
+            rm: RangeMap::new(),
+        }
+    }
+
+    /// Makes a new empty `RangeSet`.
+    #[cfg(not(feature = "const_fn"))]
     pub fn new() -> Self {
         RangeSet {
             rm: RangeMap::new(),
