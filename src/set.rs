@@ -13,7 +13,7 @@ use serde::{
 
 use crate::RangeMap;
 
-#[derive(Clone, Eq, PartialEq, PartialOrd, Ord)]
+#[derive(Clone, Eq, PartialEq)]
 /// A set whose items are stored as (half-open) ranges bounded
 /// inclusively below and exclusively above `(start..end)`.
 ///
@@ -22,7 +22,7 @@ use crate::RangeMap;
 /// [`RangeMap`]: struct.RangeMap.html
 pub struct RangeSet<T>
 where
-    T: Ord + Clone,
+    T: Eq,
 {
     rm: RangeMap<T, ()>,
 }
@@ -150,7 +150,7 @@ pub struct IntoIter<T> {
 
 impl<T> IntoIterator for RangeSet<T>
 where
-    T: Ord + Clone,
+    T: Eq,
 {
     type Item = Range<T>;
     type IntoIter = IntoIter<T>;

@@ -19,10 +19,10 @@ use serde::{
 ///
 /// Contiguous and overlapping ranges that map to the same value
 /// are coalesced into a single range.
-#[derive(Clone, PartialEq, PartialOrd, Ord, Eq)]
+#[derive(Clone, PartialEq, Eq)]
 pub struct RangeMap<K, V>
 where
-    K: Ord + Clone,
+    K: Eq,
 {
     // Wrap ranges so that they are `Ord`.
     // See `range_wrapper.rs` for explanation.
@@ -428,7 +428,7 @@ pub struct IntoIter<K, V> {
 
 impl<K, V> IntoIterator for RangeMap<K, V>
 where
-    K: Ord + Clone,
+    K: Eq,
 {
     type Item = (Range<K>, V);
     type IntoIter = IntoIter<K, V>;
