@@ -30,8 +30,11 @@ use serde::{
 /// you can provide equivalent free functions using the `StepFnsT` type parameter.
 /// [`StepLite`](crate::StepLite) is implemented for all standard integer types,
 /// but not for any third party crate types.
-#[derive(Clone)]
-pub struct RangeInclusiveMap<K, V, StepFnsT = K> {
+#[derive(Clone, PartialEq, PartialOrd, Ord, Eq)]
+pub struct RangeInclusiveMap<K, V, StepFnsT = K>
+where
+    K: Ord + Clone,
+{
     // Wrap ranges so that they are `Ord`.
     // See `range_wrapper.rs` for explanation.
     pub(crate) btm: BTreeMap<RangeInclusiveStartWrapper<K>, V>,
@@ -486,7 +489,10 @@ pub struct IntoIter<K, V> {
     inner: alloc::collections::btree_map::IntoIter<RangeInclusiveStartWrapper<K>, V>,
 }
 
-impl<K, V> IntoIterator for RangeInclusiveMap<K, V> {
+impl<K, V> IntoIterator for RangeInclusiveMap<K, V>
+where
+    K: Ord + Clone,
+{
     type Item = (RangeInclusive<K>, V);
     type IntoIter = IntoIter<K, V>;
     fn into_iter(self) -> Self::IntoIter {

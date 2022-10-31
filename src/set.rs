@@ -13,14 +13,17 @@ use serde::{
 
 use crate::RangeMap;
 
-#[derive(Clone)]
+#[derive(Clone, Eq, PartialEq, PartialOrd, Ord)]
 /// A set whose items are stored as (half-open) ranges bounded
 /// inclusively below and exclusively above `(start..end)`.
 ///
 /// See [`RangeMap`]'s documentation for more details.
 ///
 /// [`RangeMap`]: struct.RangeMap.html
-pub struct RangeSet<T> {
+pub struct RangeSet<T>
+where
+    T: Ord + Clone,
+{
     rm: RangeMap<T, ()>,
 }
 
@@ -145,7 +148,10 @@ pub struct IntoIter<T> {
     inner: super::map::IntoIter<T, ()>,
 }
 
-impl<T> IntoIterator for RangeSet<T> {
+impl<T> IntoIterator for RangeSet<T>
+where
+    T: Ord + Clone,
+{
     type Item = Range<T>;
     type IntoIter = IntoIter<T>;
     fn into_iter(self) -> Self::IntoIter {

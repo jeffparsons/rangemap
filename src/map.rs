@@ -19,8 +19,11 @@ use serde::{
 ///
 /// Contiguous and overlapping ranges that map to the same value
 /// are coalesced into a single range.
-#[derive(Clone)]
-pub struct RangeMap<K, V> {
+#[derive(Clone, PartialEq, PartialOrd, Ord, Eq)]
+pub struct RangeMap<K, V>
+where
+    K: Ord + Clone,
+{
     // Wrap ranges so that they are `Ord`.
     // See `range_wrapper.rs` for explanation.
     pub(crate) btm: BTreeMap<RangeStartWrapper<K>, V>,
@@ -423,7 +426,10 @@ pub struct IntoIter<K, V> {
     inner: alloc::collections::btree_map::IntoIter<RangeStartWrapper<K>, V>,
 }
 
-impl<K, V> IntoIterator for RangeMap<K, V> {
+impl<K, V> IntoIterator for RangeMap<K, V>
+where
+    K: Ord + Clone,
+{
     type Item = (Range<K>, V);
     type IntoIter = IntoIter<K, V>;
     fn into_iter(self) -> Self::IntoIter {

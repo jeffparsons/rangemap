@@ -13,14 +13,17 @@ use serde::{
 use crate::std_ext::*;
 use crate::RangeInclusiveMap;
 
-#[derive(Clone)]
+#[derive(Clone, PartialEq, PartialOrd, Ord, Eq)]
 /// A set whose items are stored as ranges bounded
 /// inclusively below and above `(start..=end)`.
 ///
 /// See [`RangeInclusiveMap`]'s documentation for more details.
 ///
 /// [`RangeInclusiveMap`]: struct.RangeInclusiveMap.html
-pub struct RangeInclusiveSet<T, StepFnsT = T> {
+pub struct RangeInclusiveSet<T, StepFnsT = T>
+where
+    T: Ord + Clone,
+{
     rm: RangeInclusiveMap<T, (), StepFnsT>,
 }
 
@@ -156,7 +159,10 @@ pub struct IntoIter<T> {
     inner: super::inclusive_map::IntoIter<T, ()>,
 }
 
-impl<T> IntoIterator for RangeInclusiveSet<T> {
+impl<T> IntoIterator for RangeInclusiveSet<T>
+where
+    T: Ord + Clone,
+{
     type Item = RangeInclusive<T>;
     type IntoIter = IntoIter<T>;
     fn into_iter(self) -> Self::IntoIter {
