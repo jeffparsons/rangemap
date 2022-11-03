@@ -1,3 +1,4 @@
+use core::cmp::Ordering;
 use core::fmt::{self, Debug};
 use core::iter::FromIterator;
 use core::ops::RangeInclusive;
@@ -43,6 +44,26 @@ where
 }
 
 impl<T> Eq for RangeInclusiveSet<T, T> where T: Eq {}
+
+impl<T> PartialOrd for RangeInclusiveSet<T, T>
+where
+    T: Ord + PartialOrd,
+{
+    #[inline]
+    fn partial_cmp(&self, other: &RangeInclusiveSet<T, T>) -> Option<Ordering> {
+        self.rm.partial_cmp(&other.rm)
+    }
+}
+
+impl<T> Ord for RangeInclusiveSet<T, T>
+where
+    T: Ord,
+{
+    #[inline]
+    fn cmp(&self, other: &RangeInclusiveSet<T, T>) -> Ordering {
+        self.rm.cmp(&other.rm)
+    }
+}
 
 impl<T> RangeInclusiveSet<T, T>
 where

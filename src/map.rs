@@ -1,6 +1,7 @@
 use super::range_wrapper::RangeStartWrapper;
 use crate::std_ext::*;
 use alloc::collections::BTreeMap;
+use core::cmp::Ordering;
 use core::fmt::{self, Debug};
 use core::iter::FromIterator;
 use core::ops::Range;
@@ -43,6 +44,28 @@ where
 {
     fn eq(&self, other: &RangeMap<K, V>) -> bool {
         self.btm == other.btm
+    }
+}
+
+impl<K, V> PartialOrd for RangeMap<K, V>
+where
+    K: Ord + PartialOrd,
+    V: Ord + PartialOrd,
+{
+    #[inline]
+    fn partial_cmp(&self, other: &RangeMap<K, V>) -> Option<Ordering> {
+        self.btm.partial_cmp(&other.btm)
+    }
+}
+
+impl<K, V> Ord for RangeMap<K, V>
+where
+    K: Ord,
+    V: Ord,
+{
+    #[inline]
+    fn cmp(&self, other: &RangeMap<K, V>) -> Ordering {
+        self.btm.cmp(&other.btm)
     }
 }
 

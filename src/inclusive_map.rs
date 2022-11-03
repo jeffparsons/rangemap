@@ -1,6 +1,7 @@
 use super::range_wrapper::RangeInclusiveStartWrapper;
 use crate::std_ext::*;
 use alloc::collections::BTreeMap;
+use core::cmp::Ordering;
 use core::fmt::{self, Debug};
 use core::iter::FromIterator;
 use core::marker::PhantomData;
@@ -63,6 +64,28 @@ where
     K: Eq,
     V: Eq,
 {
+}
+
+impl<K, V> PartialOrd for RangeInclusiveMap<K, V, K>
+where
+    K: Ord + PartialOrd,
+    V: Ord + PartialOrd,
+{
+    #[inline]
+    fn partial_cmp(&self, other: &RangeInclusiveMap<K, V, K>) -> Option<Ordering> {
+        self.btm.partial_cmp(&other.btm)
+    }
+}
+
+impl<K, V> Ord for RangeInclusiveMap<K, V, K>
+where
+    K: Ord,
+    V: Ord,
+{
+    #[inline]
+    fn cmp(&self, other: &RangeInclusiveMap<K, V, K>) -> Ordering {
+        self.btm.cmp(&other.btm)
+    }
 }
 
 impl<K, V> RangeInclusiveMap<K, V, K>
