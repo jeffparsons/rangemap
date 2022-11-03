@@ -19,11 +19,8 @@ use serde::{
 ///
 /// Contiguous and overlapping ranges that map to the same value
 /// are coalesced into a single range.
-#[derive(Clone, PartialEq, Eq)]
-pub struct RangeMap<K, V>
-where
-    K: Eq,
-{
+#[derive(Clone)]
+pub struct RangeMap<K, V> {
     // Wrap ranges so that they are `Ord`.
     // See `range_wrapper.rs` for explanation.
     pub(crate) btm: BTreeMap<RangeStartWrapper<K>, V>,
@@ -37,6 +34,23 @@ where
     fn default() -> Self {
         Self::new()
     }
+}
+
+impl<K, V> PartialEq for RangeMap<K, V>
+where
+    K: Eq,
+    V: Eq,
+{
+    fn eq(&self, other: &RangeMap<K, V>) -> bool {
+        self.btm == other.btm
+    }
+}
+
+impl<K, V> Eq for RangeMap<K, V>
+where
+    K: Eq,
+    V: Eq,
+{
 }
 
 impl<K, V> RangeMap<K, V>
@@ -426,10 +440,7 @@ pub struct IntoIter<K, V> {
     inner: alloc::collections::btree_map::IntoIter<RangeStartWrapper<K>, V>,
 }
 
-impl<K, V> IntoIterator for RangeMap<K, V>
-where
-    K: Eq,
-{
+impl<K, V> IntoIterator for RangeMap<K, V> {
     type Item = (Range<K>, V);
     type IntoIter = IntoIter<K, V>;
     fn into_iter(self) -> Self::IntoIter {

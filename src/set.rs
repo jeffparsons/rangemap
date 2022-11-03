@@ -13,17 +13,14 @@ use serde::{
 
 use crate::RangeMap;
 
-#[derive(Clone, Eq, PartialEq)]
+#[derive(Clone)]
 /// A set whose items are stored as (half-open) ranges bounded
 /// inclusively below and exclusively above `(start..end)`.
 ///
 /// See [`RangeMap`]'s documentation for more details.
 ///
 /// [`RangeMap`]: struct.RangeMap.html
-pub struct RangeSet<T>
-where
-    T: Eq,
-{
+pub struct RangeSet<T> {
     rm: RangeMap<T, ()>,
 }
 
@@ -35,6 +32,17 @@ where
         RangeSet::new()
     }
 }
+
+impl<T> PartialEq for RangeSet<T>
+where
+    T: Eq,
+{
+    fn eq(&self, other: &RangeSet<T>) -> bool {
+        self.rm == other.rm
+    }
+}
+
+impl<T> Eq for RangeSet<T> where T: Eq {}
 
 impl<T> RangeSet<T>
 where
@@ -148,10 +156,7 @@ pub struct IntoIter<T> {
     inner: super::map::IntoIter<T, ()>,
 }
 
-impl<T> IntoIterator for RangeSet<T>
-where
-    T: Eq,
-{
+impl<T> IntoIterator for RangeSet<T> {
     type Item = Range<T>;
     type IntoIter = IntoIter<T>;
     fn into_iter(self) -> Self::IntoIter {
