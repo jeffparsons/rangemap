@@ -36,18 +36,18 @@ where
 
 impl<T> PartialEq for RangeInclusiveSet<T, T>
 where
-    T: Eq,
+    T: Ord + Eq + StepLite,
 {
     fn eq(&self, other: &RangeInclusiveSet<T, T>) -> bool {
         self.rm == other.rm
     }
 }
 
-impl<T> Eq for RangeInclusiveSet<T, T> where T: Eq {}
+impl<T> Eq for RangeInclusiveSet<T, T> where T: Ord + Eq + StepLite {}
 
 impl<T> PartialOrd for RangeInclusiveSet<T, T>
 where
-    T: Ord + PartialOrd,
+    T: Ord + PartialOrd + StepLite,
 {
     #[inline]
     fn partial_cmp(&self, other: &RangeInclusiveSet<T, T>) -> Option<Ordering> {
@@ -57,7 +57,7 @@ where
 
 impl<T> Ord for RangeInclusiveSet<T, T>
 where
-    T: Ord,
+    T: Ord + StepLite,
 {
     #[inline]
     fn cmp(&self, other: &RangeInclusiveSet<T, T>) -> Ordering {

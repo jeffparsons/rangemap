@@ -49,41 +49,45 @@ where
     }
 }
 
-impl<K, V> PartialEq for RangeInclusiveMap<K, V, K>
+impl<K, V, StepFnsT> PartialEq for RangeInclusiveMap<K, V, StepFnsT>
 where
-    K: Eq,
+    K: Ord,
     V: Eq,
+    StepFnsT: StepFns<K>,
 {
-    fn eq(&self, other: &RangeInclusiveMap<K, V, K>) -> bool {
+    fn eq(&self, other: &RangeInclusiveMap<K, V, StepFnsT>) -> bool {
         self.btm == other.btm
     }
 }
 
-impl<K, V> Eq for RangeInclusiveMap<K, V, K>
+impl<K, V, StepFnsT> Eq for RangeInclusiveMap<K, V, StepFnsT>
 where
-    K: Eq,
+    K: Ord,
     V: Eq,
+    StepFnsT: StepFns<K>,
 {
 }
 
-impl<K, V> PartialOrd for RangeInclusiveMap<K, V, K>
+impl<K, V, StepFnsT> PartialOrd for RangeInclusiveMap<K, V, StepFnsT>
 where
     K: Ord + PartialOrd,
     V: Ord + PartialOrd,
+    StepFnsT: StepFns<K>,
 {
     #[inline]
-    fn partial_cmp(&self, other: &RangeInclusiveMap<K, V, K>) -> Option<Ordering> {
+    fn partial_cmp(&self, other: &RangeInclusiveMap<K, V, StepFnsT>) -> Option<Ordering> {
         self.btm.partial_cmp(&other.btm)
     }
 }
 
-impl<K, V> Ord for RangeInclusiveMap<K, V, K>
+impl<K, V, StepFnsT> Ord for RangeInclusiveMap<K, V, StepFnsT>
 where
     K: Ord,
     V: Ord,
+    StepFnsT: StepFns<K>,
 {
     #[inline]
-    fn cmp(&self, other: &RangeInclusiveMap<K, V, K>) -> Ordering {
+    fn cmp(&self, other: &RangeInclusiveMap<K, V, StepFnsT>) -> Ordering {
         self.btm.cmp(&other.btm)
     }
 }
