@@ -36,7 +36,7 @@ where
 
 impl<T> PartialEq for RangeSet<T>
 where
-    T: Eq,
+    T: PartialEq,
 {
     fn eq(&self, other: &RangeSet<T>) -> bool {
         self.rm == other.rm
@@ -47,7 +47,7 @@ impl<T> Eq for RangeSet<T> where T: Eq {}
 
 impl<T> PartialOrd for RangeSet<T>
 where
-    T: Ord + PartialOrd,
+    T: PartialOrd,
 {
     #[inline]
     fn partial_cmp(&self, other: &RangeSet<T>) -> Option<Ordering> {

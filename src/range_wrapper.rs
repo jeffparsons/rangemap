@@ -30,7 +30,7 @@ impl<T> RangeStartWrapper<T> {
 
 impl<T> PartialEq for RangeStartWrapper<T>
 where
-    T: Eq,
+    T: PartialEq,
 {
     fn eq(&self, other: &RangeStartWrapper<T>) -> bool {
         self.range.start == other.range.start
@@ -48,10 +48,10 @@ where
 
 impl<T> PartialOrd for RangeStartWrapper<T>
 where
-    T: Ord,
+    T: PartialOrd,
 {
     fn partial_cmp(&self, other: &RangeStartWrapper<T>) -> Option<Ordering> {
-        Some(self.cmp(other))
+        self.range.start.partial_cmp(&other.range.start)
     }
 }
 
@@ -72,7 +72,7 @@ impl<T> RangeInclusiveStartWrapper<T> {
 
 impl<T> PartialEq for RangeInclusiveStartWrapper<T>
 where
-    T: Eq,
+    T: PartialEq,
 {
     fn eq(&self, other: &RangeInclusiveStartWrapper<T>) -> bool {
         self.range.start() == other.range.start()
@@ -90,9 +90,9 @@ where
 
 impl<T> PartialOrd for RangeInclusiveStartWrapper<T>
 where
-    T: Ord,
+    T: PartialOrd,
 {
     fn partial_cmp(&self, other: &RangeInclusiveStartWrapper<T>) -> Option<Ordering> {
-        Some(self.cmp(other))
+        self.range.start().partial_cmp(other.range.start())
     }
 }

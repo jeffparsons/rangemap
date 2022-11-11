@@ -39,8 +39,8 @@ where
 
 impl<K, V> PartialEq for RangeMap<K, V>
 where
-    K: Eq,
-    V: Eq,
+    K: PartialEq,
+    V: PartialEq,
 {
     fn eq(&self, other: &RangeMap<K, V>) -> bool {
         self.btm == other.btm
@@ -49,8 +49,8 @@ where
 
 impl<K, V> PartialOrd for RangeMap<K, V>
 where
-    K: Ord + PartialOrd,
-    V: Ord + PartialOrd,
+    K: PartialOrd,
+    V: PartialOrd,
 {
     #[inline]
     fn partial_cmp(&self, other: &RangeMap<K, V>) -> Option<Ordering> {
