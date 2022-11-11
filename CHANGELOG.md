@@ -2,6 +2,7 @@
 
 - **Features**:
     - Implement `PartialEq`, `Eq`, `PartialOrd`, and `Ord` for all map and set types.
+    - Make `new` functions for all map and set types `const` when `const_fn` feature is enabled.
 - **Changes**:
     - Bump minimum supported Rust version to 1.56.1. (Released a year ago.) This is for compatibility with new versions of some of rangemap's development dependencies.
 

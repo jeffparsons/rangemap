@@ -35,7 +35,8 @@ serde_json = "1"
 serde1 = ["serde"]
 # So we can run doc tests from "README.md".
 nightly = []
-# Enables `RangeMap::new()` and `RangeSet::new()` to be const functions.
+# Enables `RangeMap::new()`, `RangeInclusiveMap::new()`, `RangeSet::new()`,
+# and `RangeInclusiveSet::new()` to be const functions.
 # Requires a nightly compiler because `const_btree_new` is an unstable feature,
 # but is soon to be stabilized: <https://github.com/rust-lang/rust/issues/71835>
 const_fn = []

@@ -70,6 +70,13 @@ where
     T: Ord + Clone + StepLite,
 {
     /// Makes a new empty `RangeInclusiveSet`.
+    #[cfg(feature = "const_fn")]
+    pub const fn new() -> Self {
+        Self::new_with_step_fns()
+    }
+
+    /// Makes a new empty `RangeInclusiveSet`.
+    #[cfg(not(feature = "const_fn"))]
     pub fn new() -> Self {
         Self::new_with_step_fns()
     }

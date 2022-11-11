@@ -94,6 +94,13 @@ where
     V: Eq + Clone,
 {
     /// Makes a new empty `RangeInclusiveMap`.
+    #[cfg(feature = "const_fn")]
+    pub const fn new() -> Self {
+        Self::new_with_step_fns()
+    }
+
+    /// Makes a new empty `RangeInclusiveMap`.
+    #[cfg(not(feature = "const_fn"))]
     pub fn new() -> Self {
         Self::new_with_step_fns()
     }
