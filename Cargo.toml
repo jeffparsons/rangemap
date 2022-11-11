@@ -14,6 +14,7 @@ Map and set data structures whose keys are stored as ranges.
 Contiguous and overlapping ranges that map to the same value are coalesced into a single range.
 """
 categories = ["data-structures"]
+rust-version = "1.56.1"
 
 [dependencies]
 serde = { version = "1", optional = true }

@@ -3,7 +3,7 @@
 [![Crate](https://img.shields.io/crates/v/rangemap.svg)](https://crates.io/crates/rangemap)
 [![Docs](https://docs.rs/rangemap/badge.svg)](https://docs.rs/rangemap)
 [![Build status](https://github.com/jeffparsons/rangemap/workflows/CI/badge.svg)](https://github.com/jeffparsons/rangemap/actions)
-[![Rust](https://img.shields.io/badge/rust-1.46%2B-blue.svg?maxAge=3600)](https://github.com/jeffparsons/rangemap) <!-- Don't forget to update the GitHub actions config when bumping minimum Rust version. -->
+[![Rust](https://img.shields.io/badge/rust-1.56.1%2B-blue.svg?maxAge=3600)](https://github.com/jeffparsons/rangemap) <!-- Don't forget to update the GitHub actions config when bumping minimum Rust version. -->
 
 [`RangeMap`] and [`RangeInclusiveMap`] are map data structures whose keys
 are stored as ranges. Contiguous and overlapping ranges that map to the same

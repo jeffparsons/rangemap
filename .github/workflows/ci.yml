@@ -16,7 +16,7 @@ jobs:
       matrix:
         toolchain:
           # Don't forget to update the README when bumping MSRV.
-          - 1.46.0
+          - 1.56.1
           - stable
           - beta
           - nightly
