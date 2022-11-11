@@ -1,4 +1,12 @@
- ### v1.0.3 (2022-06-11)
+### v1.1.0 (2022-11-12)
+
+- **Features**:
+    - Implement `PartialEq`, `Eq`, `PartialOrd`, and `Ord` for all map and set types.
+- **Changes**:
+    - Bump minimum supported Rust version to 1.56.1. (Released a year ago.) This is for compatibility with new versions of some of rangemap's development dependencies.
+
+
+### v1.0.3 (2022-06-11)
 
 - **Fixes**:
     - Fix `Gaps` iterator for `RangeMap` yielding an empty gap for an empty outer range. Simplified gaps logic and expanded fuzz testing to better cover this and similar cases.
