@@ -125,6 +125,21 @@ where
         }
     }
 
+    /// Clears the set, removing all elements.
+    pub fn clear(&mut self) {
+        self.rm.clear();
+    }
+
+    /// Returns the number of elements in the set.
+    pub fn len(&self) -> usize {
+        self.rm.len()
+    }
+
+    /// Returns true if the set contains no elements.
+    pub fn is_empty(&self) -> bool {
+        self.rm.is_empty()
+    }
+
     /// Insert a range into the set.
     ///
     /// If the inserted range either overlaps or is immediately adjacent

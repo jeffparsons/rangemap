@@ -173,6 +173,21 @@ where
         }
     }
 
+    /// Clears the map, removing all elements.
+    pub fn clear(&mut self) {
+        self.btm.clear();
+    }
+
+    /// Returns the number of elements in the map.
+    pub fn len(&self) -> usize {
+        self.btm.len()
+    }
+
+    /// Returns true if the map contains no elements.
+    pub fn is_empty(&self) -> bool {
+        self.btm.is_empty()
+    }
+
     /// Insert a pair of key range and value into the map.
     ///
     /// If the inserted range partially or completely overlaps any
