@@ -43,6 +43,6 @@ where
         self.start = new_start;
     }
     fn set_end(&mut self, new_end: Self::A) {
-        self.start = new_end;
+        self.end = new_end;
     }
 }
