@@ -8,7 +8,7 @@ use std::ops::Range;
 fn kitchen_sink(kvs: &[(Range<i32>, bool)]) {
     use rangemap::RangeMap;
 
-    let mut range_map: RangeMap<i32, bool> = RangeMap::new();
+    let mut range_map: RangeMap<Range<i32>, bool> = RangeMap::new();
     // Remove every second range.
     let mut remove = false;
     for (range, value) in kvs {

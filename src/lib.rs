@@ -139,12 +139,14 @@ pub mod set;
 
 #[cfg(test)]
 mod dense;
+mod range_trait;
 mod range_wrapper;
 mod std_ext;
 
 pub use inclusive_map::RangeInclusiveMap;
 pub use inclusive_set::RangeInclusiveSet;
 pub use map::RangeMap;
+pub use range_trait::RangeTrait;
 pub use set::RangeSet;
 pub use std_ext::{StepFns, StepLite};
 

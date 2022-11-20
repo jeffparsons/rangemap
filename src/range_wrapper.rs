@@ -11,47 +11,59 @@
 // inner range!
 
 use core::cmp::Ordering;
-use core::ops::{Range, RangeInclusive};
+use core::ops::RangeInclusive;
+
+use crate::RangeTrait;
 
 //
 // Range start wrapper
 //
 
-#[derive(Eq, Debug, Clone)]
+#[derive(Debug, Clone)]
 pub struct RangeStartWrapper<T> {
-    pub range: Range<T>,
+    pub range: T,
 }
 
 impl<T> RangeStartWrapper<T> {
-    pub fn new(range: Range<T>) -> RangeStartWrapper<T> {
+    pub fn new(range: T) -> RangeStartWrapper<T> {
         RangeStartWrapper { range }
     }
 }
 
-impl<T> PartialEq for RangeStartWrapper<T>
+impl<T, I> PartialEq for RangeStartWrapper<T>
 where
-    T: PartialEq,
+    T: RangeTrait<A = I>,
+    I: PartialEq,
 {
     fn eq(&self, other: &RangeStartWrapper<T>) -> bool {
-        self.range.start == other.range.start
+        self.range.start() == other.range.start()
     }
 }
 
-impl<T> Ord for RangeStartWrapper<T>
+impl<T, I> Eq for RangeStartWrapper<T>
 where
-    T: Ord,
+    T: RangeTrait<A = I>,
+    I: Eq,
+{
+}
+
+impl<T, I> Ord for RangeStartWrapper<T>
+where
+    T: RangeTrait<A = I>,
+    I: Ord,
 {
     fn cmp(&self, other: &RangeStartWrapper<T>) -> Ordering {
-        self.range.start.cmp(&other.range.start)
+        self.range.start().cmp(&other.range.start())
     }
 }
 
-impl<T> PartialOrd for RangeStartWrapper<T>
+impl<T, I> PartialOrd for RangeStartWrapper<T>
 where
-    T: PartialOrd,
+    T: RangeTrait<A = I>,
+    I: PartialOrd,
 {
     fn partial_cmp(&self, other: &RangeStartWrapper<T>) -> Option<Ordering> {
-        self.range.start.partial_cmp(&other.range.start)
+        self.range.start().partial_cmp(&other.range.start())
     }
 }
 

@@ -1,19 +1,10 @@
 use super::range_wrapper::RangeStartWrapper;
-use crate::std_ext::*;
+use crate::RangeTrait;
 use alloc::collections::BTreeMap;
 use core::cmp::Ordering;
 use core::fmt::{self, Debug};
 use core::iter::FromIterator;
-use core::ops::Range;
 use core::prelude::v1::*;
-
-#[cfg(feature = "serde1")]
-use core::marker::PhantomData;
-#[cfg(feature = "serde1")]
-use serde::{
-    de::{Deserialize, Deserializer, SeqAccess, Visitor},
-    ser::{Serialize, Serializer},
-};
 
 /// A map whose keys are stored as (half-open) ranges bounded
 /// inclusively below and exclusively above `(start..end)`.
@@ -27,9 +18,10 @@ pub struct RangeMap<K, V> {
     pub(crate) btm: BTreeMap<RangeStartWrapper<K>, V>,
 }
 
-impl<K, V> Default for RangeMap<K, V>
+impl<K, I, V> Default for RangeMap<K, V>
 where
-    K: Ord + Clone,
+    K: RangeTrait<A = I> + Clone,
+    I: Ord + Clone,
     V: Eq + Clone,
 {
     fn default() -> Self {
@@ -37,9 +29,10 @@ where
     }
 }
 
-impl<K, V> PartialEq for RangeMap<K, V>
+impl<K, I, V> PartialEq for RangeMap<K, V>
 where
-    K: PartialEq,
+    K: RangeTrait<A = I>,
+    I: PartialEq,
     V: PartialEq,
 {
     fn eq(&self, other: &RangeMap<K, V>) -> bool {
@@ -47,9 +40,10 @@ where
     }
 }
 
-impl<K, V> PartialOrd for RangeMap<K, V>
+impl<K, I, V> PartialOrd for RangeMap<K, V>
 where
-    K: PartialOrd,
+    K: RangeTrait<A = I>,
+    I: PartialOrd,
     V: PartialOrd,
 {
     #[inline]
@@ -58,9 +52,10 @@ where
     }
 }
 
-impl<K, V> Ord for RangeMap<K, V>
+impl<K, I, V> Ord for RangeMap<K, V>
 where
-    K: Ord,
+    K: RangeTrait<A = I>,
+    I: Ord + Eq,
     V: Ord,
 {
     #[inline]
@@ -69,16 +64,18 @@ where
     }
 }
 
-impl<K, V> Eq for RangeMap<K, V>
+impl<K, I, V> Eq for RangeMap<K, V>
 where
-    K: Eq,
+    K: RangeTrait<A = I>,
+    I: Eq,
     V: Eq,
 {
 }
 
-impl<K, V> RangeMap<K, V>
+impl<K, I, V> RangeMap<K, V>
 where
-    K: Ord + Clone,
+    K: Clone + RangeTrait<A = I>,
+    I: Ord + Clone,
     V: Eq + Clone,
 {
     /// Makes a new empty `RangeMap`.
@@ -99,18 +96,18 @@ where
 
     /// Returns a reference to the value corresponding to the given key,
     /// if the key is covered by any range in the map.
-    pub fn get(&self, key: &K) -> Option<&V> {
+    pub fn get(&self, key: &I) -> Option<&V> {
         self.get_key_value(key).map(|(_range, value)| value)
     }
 
     /// Returns the range-value pair (as a pair of references) corresponding
     /// to the given key, if the key is covered by any range in the map.
-    pub fn get_key_value(&self, key: &K) -> Option<(&Range<K>, &V)> {
+    pub fn get_key_value(&self, key: &I) -> Option<(&K, &V)> {
         use core::ops::Bound;
 
         // The only stored range that could contain the given key is the
         // last stored range whose start is less than or equal to this key.
-        let key_as_start = RangeStartWrapper::new(key.clone()..key.clone());
+        let key_as_start = RangeStartWrapper::new(K::new(key.clone(), key.clone()));
         self.btm
             .range((Bound::Unbounded, Bound::Included(key_as_start)))
             .next_back()
@@ -123,7 +120,7 @@ where
     }
 
     /// Returns `true` if any range in the map covers the specified key.
-    pub fn contains_key(&self, key: &K) -> bool {
+    pub fn contains_key(&self, key: &I) -> bool {
         self.get(key).is_some()
     }
 
@@ -150,17 +147,18 @@ where
     /// # Panics
     ///
     /// Panics if range `start >= end`.
-    pub fn insert(&mut self, range: Range<K>, value: V) {
+    pub fn insert(&mut self, range: K, value: V) {
         use core::ops::Bound;
 
         // We don't want to have to make empty ranges make sense;
         // they don't represent anything meaningful in this structure.
-        assert!(range.start < range.end);
+        assert!(range.start() < range.end());
 
         // Wrap up the given range so that we can "borrow"
         // it as a wrapper reference to either its start or end.
         // See `range_wrapper.rs` for explanation of these hacks.
-        let mut new_range_start_wrapper: RangeStartWrapper<K> = RangeStartWrapper::new(range);
+        let mut new_range_start_wrapper: RangeStartWrapper<K> =
+            RangeStartWrapper::new(range.clone());
         let new_value = value;
 
         // Is there a stored range either overlapping the start of
@@ -210,9 +208,8 @@ where
         //
         // REVISIT: Possible micro-optimisation: `impl Borrow<T> for RangeStartWrapper<T>`
         // and use that to search here, to avoid constructing another `RangeStartWrapper`.
-        let new_range_end_as_start = RangeStartWrapper::new(
-            new_range_start_wrapper.range.end.clone()..new_range_start_wrapper.range.end.clone(),
-        );
+        let new_range_end_as_start =
+            RangeStartWrapper::new(K::new(range.end().clone(), range.end().clone()));
         while let Some((stored_range_start_wrapper, stored_value)) = self
             .btm
             .range((
@@ -225,7 +222,7 @@ where
             // and the stored range starts at the end of the range to insert,
             // then we don't want to keep looping forever trying to find more!
             #[allow(clippy::suspicious_operation_groupings)]
-            if stored_range_start_wrapper.range.start == new_range_start_wrapper.range.end
+            if stored_range_start_wrapper.range.start() == new_range_start_wrapper.range.end()
                 && *stored_value != new_value
             {
                 // We're beyond the last stored range that could be relevant.
@@ -261,12 +258,12 @@ where
     /// # Panics
     ///
     /// Panics if range `start >= end`.
-    pub fn remove(&mut self, range: Range<K>) {
+    pub fn remove(&mut self, range: K) {
         use core::ops::Bound;
 
         // We don't want to have to make empty ranges make sense;
         // they don't represent anything meaningful in this structure.
-        assert!(range.start < range.end);
+        assert!(range.start() < range.end());
 
         let range_start_wrapper: RangeStartWrapper<K> = RangeStartWrapper::new(range);
         let range = &range_start_wrapper.range;
@@ -304,7 +301,8 @@ where
         //
         // REVISIT: Possible micro-optimisation: `impl Borrow<T> for RangeStartWrapper<T>`
         // and use that to search here, to avoid constructing another `RangeStartWrapper`.
-        let new_range_end_as_start = RangeStartWrapper::new(range.end.clone()..range.end.clone());
+        let new_range_end_as_start =
+            RangeStartWrapper::new(K::new(range.end().clone(), range.end().clone()));
         while let Some((stored_range_start_wrapper, stored_value)) = self
             .btm
             .range((
@@ -328,10 +326,12 @@ where
         &mut self,
         stored_range_start_wrapper: RangeStartWrapper<K>,
         stored_value: V,
-        new_range: &mut Range<K>,
+        new_range: &mut K,
         new_value: &V,
     ) {
         use core::cmp::{max, min};
+
+        let stored_range = &stored_range_start_wrapper.range;
 
         if stored_value == *new_value {
             // The ranges have the same value, so we can "adopt"
@@ -340,34 +340,29 @@ where
             // This means that no matter how big or where the stored range is,
             // we will expand the new range's bounds to subsume it,
             // and then delete the stored range.
-            new_range.start =
-                min(&new_range.start, &stored_range_start_wrapper.range.start).clone();
-            new_range.end = max(&new_range.end, &stored_range_start_wrapper.range.end).clone();
+            new_range.set_start(min(new_range.start(), stored_range.start()).clone());
+            new_range.set_end(max(new_range.end(), stored_range.end()).clone());
             self.btm.remove(&stored_range_start_wrapper);
         } else {
             // The ranges have different values.
-            if new_range.overlaps(&stored_range_start_wrapper.range) {
+            if new_range.overlaps(&stored_range) {
                 // The ranges overlap. This is a little bit more complicated.
                 // Delete the stored range, and then add back between
                 // 0 and 2 subranges at the ends of the range to insert.
                 self.btm.remove(&stored_range_start_wrapper);
-                if stored_range_start_wrapper.range.start < new_range.start {
+                if stored_range.start() < new_range.start() {
                     // Insert the piece left of the range to insert.
-                    self.btm.insert(
-                        RangeStartWrapper::new(
-                            stored_range_start_wrapper.range.start..new_range.start.clone(),
-                        ),
-                        stored_value.clone(),
-                    );
+                    let mut left_peice = stored_range.clone();
+                    left_peice.set_end(new_range.start().clone());
+                    self.btm
+                        .insert(RangeStartWrapper::new(left_peice), stored_value.clone());
                 }
-                if stored_range_start_wrapper.range.end > new_range.end {
+                if stored_range.end() > new_range.end() {
                     // Insert the piece right of the range to insert.
-                    self.btm.insert(
-                        RangeStartWrapper::new(
-                            new_range.end.clone()..stored_range_start_wrapper.range.end,
-                        ),
-                        stored_value,
-                    );
+                    let mut right_peice = stored_range.clone();
+                    right_peice.set_start(new_range.end().clone());
+                    self.btm
+                        .insert(RangeStartWrapper::new(right_peice), stored_value.clone());
                 }
             } else {
                 // No-op; they're not overlapping,
@@ -380,25 +375,25 @@ where
         &mut self,
         stored_range_start_wrapper: RangeStartWrapper<K>,
         stored_value: V,
-        range_to_remove: &Range<K>,
+        range_to_remove: &K,
     ) {
         // Delete the stored range, and then add back between
         // 0 and 2 subranges at the ends of the range to insert.
         self.btm.remove(&stored_range_start_wrapper);
         let stored_range = stored_range_start_wrapper.range;
-        if stored_range.start < range_to_remove.start {
+        if stored_range.start() < range_to_remove.start() {
             // Insert the piece left of the range to insert.
-            self.btm.insert(
-                RangeStartWrapper::new(stored_range.start..range_to_remove.start.clone()),
-                stored_value.clone(),
-            );
+            let mut left_peice = stored_range.clone();
+            left_peice.set_end(range_to_remove.start().clone());
+            self.btm
+                .insert(RangeStartWrapper::new(left_peice), stored_value.clone());
         }
-        if stored_range.end > range_to_remove.end {
+        if stored_range.end() > range_to_remove.end() {
             // Insert the piece right of the range to insert.
-            self.btm.insert(
-                RangeStartWrapper::new(range_to_remove.end.clone()..stored_range.end),
-                stored_value,
-            );
+            let mut right_peice = stored_range.clone();
+            right_peice.set_start(range_to_remove.end().clone());
+            self.btm
+                .insert(RangeStartWrapper::new(right_peice), stored_value);
         }
     }
 
@@ -411,14 +406,14 @@ where
     /// empty gap will be returned.
     ///
     /// The iterator element type is `Range<K>`.
-    pub fn gaps<'a>(&'a self, outer_range: &'a Range<K>) -> Gaps<'a, K, V> {
+    pub fn gaps<'a>(&'a self, outer_range: &'a K) -> Gaps<'a, K, I, V> {
         Gaps {
             outer_range,
             keys: self.btm.keys(),
             // We'll start the candidate range at the start of the outer range
             // without checking what's there. Each time we yield an item,
             // we'll skip any ranges we find before the next gap.
-            candidate_start: &outer_range.start,
+            candidate_start: outer_range.start(),
         }
     }
 }
@@ -440,9 +435,9 @@ where
     K: 'a,
     V: 'a,
 {
-    type Item = (&'a Range<K>, &'a V);
+    type Item = (&'a K, &'a V);
 
-    fn next(&mut self) -> Option<(&'a Range<K>, &'a V)> {
+    fn next(&mut self) -> Option<(&'a K, &'a V)> {
         self.inner.next().map(|(by_start, v)| (&by_start.range, v))
     }
 
@@ -464,7 +459,7 @@ pub struct IntoIter<K, V> {
 }
 
 impl<K, V> IntoIterator for RangeMap<K, V> {
-    type Item = (Range<K>, V);
+    type Item = (K, V);
     type IntoIter = IntoIter<K, V>;
     fn into_iter(self) -> Self::IntoIter {
         IntoIter {
@@ -474,8 +469,8 @@ impl<K, V> IntoIterator for RangeMap<K, V> {
 }
 
 impl<K, V> Iterator for IntoIter<K, V> {
-    type Item = (Range<K>, V);
-    fn next(&mut self) -> Option<(Range<K>, V)> {
+    type Item = (K, V);
+    fn next(&mut self) -> Option<(K, V)> {
         self.inner.next().map(|(by_start, v)| (by_start.range, v))
     }
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -486,9 +481,10 @@ impl<K, V> Iterator for IntoIter<K, V> {
 // We can't just derive this automatically, because that would
 // expose irrelevant (and private) implementation details.
 // Instead implement it in the same way that the underlying BTreeMap does.
-impl<K: Debug, V: Debug> Debug for RangeMap<K, V>
+impl<K: Debug, I, V: Debug> Debug for RangeMap<K, V>
 where
-    K: Ord + Clone,
+    K: RangeTrait<A = I> + Clone,
+    I: Clone + Ord,
     V: Eq + Clone,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -496,98 +492,29 @@ where
     }
 }
 
-impl<K, V> FromIterator<(Range<K>, V)> for RangeMap<K, V>
+impl<K, I, V> FromIterator<(K, V)> for RangeMap<K, V>
 where
-    K: Ord + Clone,
+    K: RangeTrait<A = I> + Clone,
+    I: Clone + Ord,
     V: Eq + Clone,
 {
-    fn from_iter<T: IntoIterator<Item = (Range<K>, V)>>(iter: T) -> Self {
+    fn from_iter<T: IntoIterator<Item = (K, V)>>(iter: T) -> Self {
         let mut range_map = RangeMap::new();
         range_map.extend(iter);
         range_map
     }
 }
 
-impl<K, V> Extend<(Range<K>, V)> for RangeMap<K, V>
+impl<K, I, V> Extend<(K, V)> for RangeMap<K, V>
 where
-    K: Ord + Clone,
+    K: RangeTrait<A = I> + Clone,
+    I: Clone + Ord,
     V: Eq + Clone,
 {
-    fn extend<T: IntoIterator<Item = (Range<K>, V)>>(&mut self, iter: T) {
+    fn extend<T: IntoIterator<Item = (K, V)>>(&mut self, iter: T) {
         iter.into_iter().for_each(move |(k, v)| {
             self.insert(k, v);
         })
-    }
-}
-
-#[cfg(feature = "serde1")]
-impl<K, V> Serialize for RangeMap<K, V>
-where
-    K: Ord + Clone + Serialize,
-    V: Eq + Clone + Serialize,
-{
-    fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
-    where
-        S: Serializer,
-    {
-        use serde::ser::SerializeSeq;
-        let mut seq = serializer.serialize_seq(Some(self.btm.len()))?;
-        for (k, v) in self.iter() {
-            seq.serialize_element(&((&k.start, &k.end), &v))?;
-        }
-        seq.end()
-    }
-}
-
-#[cfg(feature = "serde1")]
-impl<'de, K, V> Deserialize<'de> for RangeMap<K, V>
-where
-    K: Ord + Clone + Deserialize<'de>,
-    V: Eq + Clone + Deserialize<'de>,
-{
-    fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
-    where
-        D: Deserializer<'de>,
-    {
-        deserializer.deserialize_seq(RangeMapVisitor::new())
-    }
-}
-
-#[cfg(feature = "serde1")]
-struct RangeMapVisitor<K, V> {
-    marker: PhantomData<fn() -> RangeMap<K, V>>,
-}
-
-#[cfg(feature = "serde1")]
-impl<K, V> RangeMapVisitor<K, V> {
-    fn new() -> Self {
-        RangeMapVisitor {
-            marker: PhantomData,
-        }
-    }
-}
-
-#[cfg(feature = "serde1")]
-impl<'de, K, V> Visitor<'de> for RangeMapVisitor<K, V>
-where
-    K: Ord + Clone + Deserialize<'de>,
-    V: Eq + Clone + Deserialize<'de>,
-{
-    type Value = RangeMap<K, V>;
-
-    fn expecting(&self, formatter: &mut fmt::Formatter) -> fmt::Result {
-        formatter.write_str("RangeMap")
-    }
-
-    fn visit_seq<A>(self, mut access: A) -> Result<Self::Value, A::Error>
-    where
-        A: SeqAccess<'de>,
-    {
-        let mut range_map = RangeMap::new();
-        while let Some(((start, end), value)) = access.next_element()? {
-            range_map.insert(start..end, value);
-        }
-        Ok(range_map)
     }
 }
 
@@ -599,45 +526,51 @@ where
 /// documentation for more.
 ///
 /// [`gaps`]: RangeMap::gaps
-pub struct Gaps<'a, K, V> {
-    outer_range: &'a Range<K>,
+pub struct Gaps<'a, K, I, V> {
+    outer_range: &'a K,
     keys: alloc::collections::btree_map::Keys<'a, RangeStartWrapper<K>, V>,
-    candidate_start: &'a K,
+    candidate_start: &'a I,
 }
 
 // `Gaps` is always fused. (See definition of `next` below.)
-impl<'a, K, V> core::iter::FusedIterator for Gaps<'a, K, V> where K: Ord + Clone {}
-
-impl<'a, K, V> Iterator for Gaps<'a, K, V>
+impl<'a, K, I, V> core::iter::FusedIterator for Gaps<'a, K, I, V>
 where
-    K: Ord + Clone,
+    K: RangeTrait<A = I> + Clone,
+    I: Clone + Ord,
 {
-    type Item = Range<K>;
+}
+
+impl<'a, K, I, V> Iterator for Gaps<'a, K, I, V>
+where
+    K: RangeTrait<A = I> + Clone,
+    I: Clone + Ord,
+{
+    type Item = K;
 
     fn next(&mut self) -> Option<Self::Item> {
         for item in &mut self.keys {
             let range = &item.range;
-            if range.end <= *self.candidate_start {
+            if range.end() <= self.candidate_start {
                 // We're already completely past it; ignore it.
-            } else if range.start <= *self.candidate_start {
+            } else if range.start() <= self.candidate_start {
                 // We're inside it; move past it.
-                self.candidate_start = &range.end;
-            } else if range.start < self.outer_range.end {
+                self.candidate_start = range.end();
+            } else if range.start() < self.outer_range.end() {
                 // It starts before the end of the outer range,
                 // so move past it and then yield a gap.
-                let gap = self.candidate_start.clone()..range.start.clone();
-                self.candidate_start = &range.end;
+                let gap = K::new(self.candidate_start.clone(), range.start().clone());
+                self.candidate_start = &range.end();
                 return Some(gap);
             }
         }
 
         // Now that we've run out of items, the only other possible
         // gap is at the end of the outer range.
-        if *self.candidate_start < self.outer_range.end {
+        if self.candidate_start < self.outer_range.end() {
             // There's a gap at the end!
-            let gap = self.candidate_start.clone()..self.outer_range.end.clone();
+            let gap = K::new(self.candidate_start.clone(), self.outer_range.end().clone());
             // We're done; skip to the end so we don't try to find any more.
-            self.candidate_start = &self.outer_range.end;
+            self.candidate_start = &self.outer_range.end();
             Some(gap)
         } else {
             // We got to the end; there can't be any more gaps.
@@ -648,20 +581,25 @@ where
 
 #[cfg(test)]
 mod tests {
+    use core::ops::Range;
+
     use super::*;
     use alloc::{format, vec, vec::Vec};
 
     trait RangeMapExt<K, V> {
-        fn to_vec(&self) -> Vec<(Range<K>, V)>;
+        fn to_vec(&self) -> Vec<(K, V)>;
     }
 
-    impl<K, V> RangeMapExt<K, V> for RangeMap<K, V>
+    impl<K, I, V> RangeMapExt<K, V> for RangeMap<K, V>
     where
-        K: Ord + Clone,
+        K: RangeTrait<A = I> + Clone,
+        I: Clone + Ord,
         V: Eq + Clone,
     {
-        fn to_vec(&self) -> Vec<(Range<K>, V)> {
-            self.iter().map(|(kr, v)| (kr.clone(), v.clone())).collect()
+        fn to_vec(&self) -> Vec<(K, V)> {
+            self.iter()
+                .map(|(range, v)| (range.clone(), v.clone()))
+                .collect()
         }
     }
 
@@ -671,20 +609,20 @@ mod tests {
 
     #[test]
     fn empty_map_is_empty() {
-        let range_map: RangeMap<u32, bool> = RangeMap::new();
+        let range_map: RangeMap<Range<u32>, bool> = RangeMap::new();
         assert_eq!(range_map.to_vec(), vec![]);
     }
 
     #[test]
     fn insert_into_empty_map() {
-        let mut range_map: RangeMap<u32, bool> = RangeMap::new();
+        let mut range_map: RangeMap<Range<u32>, bool> = RangeMap::new();
         range_map.insert(0..50, false);
         assert_eq!(range_map.to_vec(), vec![(0..50, false)]);
     }
 
     #[test]
     fn new_same_value_immediately_following_stored() {
-        let mut range_map: RangeMap<u32, bool> = RangeMap::new();
+        let mut range_map: RangeMap<Range<u32>, bool> = RangeMap::new();
         // 0 1 2 3 4 5 6 7 8 9
         // ◌ ●---◌ ◌ ◌ ◌ ◌ ◌ ◌
         range_map.insert(1..3, false);
@@ -698,7 +636,7 @@ mod tests {
 
     #[test]
     fn new_different_value_immediately_following_stored() {
-        let mut range_map: RangeMap<u32, bool> = RangeMap::new();
+        let mut range_map: RangeMap<Range<u32>, bool> = RangeMap::new();
         // 0 1 2 3 4 5 6 7 8 9
         // ◌ ●---◌ ◌ ◌ ◌ ◌ ◌ ◌
         range_map.insert(1..3, false);
@@ -713,7 +651,7 @@ mod tests {
 
     #[test]
     fn new_same_value_overlapping_end_of_stored() {
-        let mut range_map: RangeMap<u32, bool> = RangeMap::new();
+        let mut range_map: RangeMap<Range<u32>, bool> = RangeMap::new();
         // 0 1 2 3 4 5 6 7 8 9
         // ◌ ●-----◌ ◌ ◌ ◌ ◌ ◌
         range_map.insert(1..4, false);
@@ -727,7 +665,7 @@ mod tests {
 
     #[test]
     fn new_different_value_overlapping_end_of_stored() {
-        let mut range_map: RangeMap<u32, bool> = RangeMap::new();
+        let mut range_map: RangeMap<Range<u32>, bool> = RangeMap::new();
         // 0 1 2 3 4 5 6 7 8 9
         // ◌ ●-----◌ ◌ ◌ ◌ ◌ ◌
         range_map.insert(1..4, false);
@@ -742,7 +680,7 @@ mod tests {
 
     #[test]
     fn new_same_value_immediately_preceding_stored() {
-        let mut range_map: RangeMap<u32, bool> = RangeMap::new();
+        let mut range_map: RangeMap<Range<u32>, bool> = RangeMap::new();
         // 0 1 2 3 4 5 6 7 8 9
         // ◌ ◌ ◌ ●---◌ ◌ ◌ ◌ ◌
         range_map.insert(3..5, false);
@@ -756,7 +694,7 @@ mod tests {
 
     #[test]
     fn new_different_value_immediately_preceding_stored() {
-        let mut range_map: RangeMap<u32, bool> = RangeMap::new();
+        let mut range_map: RangeMap<Range<u32>, bool> = RangeMap::new();
         // 0 1 2 3 4 5 6 7 8 9
         // ◌ ◌ ◌ ◆---◇ ◌ ◌ ◌ ◌
         range_map.insert(3..5, true);
@@ -771,7 +709,7 @@ mod tests {
 
     #[test]
     fn new_same_value_wholly_inside_stored() {
-        let mut range_map: RangeMap<u32, bool> = RangeMap::new();
+        let mut range_map: RangeMap<Range<u32>, bool> = RangeMap::new();
         // 0 1 2 3 4 5 6 7 8 9
         // ◌ ●-------◌ ◌ ◌ ◌ ◌
         range_map.insert(1..5, false);
@@ -785,7 +723,7 @@ mod tests {
 
     #[test]
     fn new_different_value_wholly_inside_stored() {
-        let mut range_map: RangeMap<u32, bool> = RangeMap::new();
+        let mut range_map: RangeMap<Range<u32>, bool> = RangeMap::new();
         // 0 1 2 3 4 5 6 7 8 9
         // ◌ ◆-------◇ ◌ ◌ ◌ ◌
         range_map.insert(1..5, true);
@@ -804,7 +742,7 @@ mod tests {
 
     #[test]
     fn replace_at_end_of_existing_range_should_coalesce() {
-        let mut range_map: RangeMap<u32, bool> = RangeMap::new();
+        let mut range_map: RangeMap<Range<u32>, bool> = RangeMap::new();
         // 0 1 2 3 4 5 6 7 8 9
         // ◌ ●---◌ ◌ ◌ ◌ ◌ ◌ ◌
         range_map.insert(1..3, false);
@@ -841,7 +779,7 @@ mod tests {
         ];
 
         ranges_with_values.permutation().for_each(|permutation| {
-            let mut range_map: RangeMap<u32, bool> = RangeMap::new();
+            let mut range_map: RangeMap<Range<u32>, bool> = RangeMap::new();
             let mut dense: DenseU32RangeMap<bool> = DenseU32RangeMap::new();
 
             for (k, v) in permutation {
@@ -866,7 +804,7 @@ mod tests {
 
     #[test]
     fn get() {
-        let mut range_map: RangeMap<u32, bool> = RangeMap::new();
+        let mut range_map: RangeMap<Range<u32>, bool> = RangeMap::new();
         range_map.insert(0..50, false);
         assert_eq!(range_map.get(&49), Some(&false));
         assert_eq!(range_map.get(&50), None);
@@ -874,7 +812,7 @@ mod tests {
 
     #[test]
     fn get_key_value() {
-        let mut range_map: RangeMap<u32, bool> = RangeMap::new();
+        let mut range_map: RangeMap<Range<u32>, bool> = RangeMap::new();
         range_map.insert(0..50, false);
         assert_eq!(range_map.get_key_value(&49), Some((&(0..50), &false)));
         assert_eq!(range_map.get_key_value(&50), None);
@@ -886,14 +824,14 @@ mod tests {
 
     #[test]
     fn remove_from_empty_map() {
-        let mut range_map: RangeMap<u32, bool> = RangeMap::new();
+        let mut range_map: RangeMap<Range<u32>, bool> = RangeMap::new();
         range_map.remove(0..50);
         assert_eq!(range_map.to_vec(), vec![]);
     }
 
     #[test]
     fn remove_non_covered_range_before_stored() {
-        let mut range_map: RangeMap<u32, bool> = RangeMap::new();
+        let mut range_map: RangeMap<Range<u32>, bool> = RangeMap::new();
         range_map.insert(25..75, false);
         range_map.remove(0..25);
         assert_eq!(range_map.to_vec(), vec![(25..75, false)]);
@@ -901,7 +839,7 @@ mod tests {
 
     #[test]
     fn remove_non_covered_range_after_stored() {
-        let mut range_map: RangeMap<u32, bool> = RangeMap::new();
+        let mut range_map: RangeMap<Range<u32>, bool> = RangeMap::new();
         range_map.insert(25..75, false);
         range_map.remove(75..100);
         assert_eq!(range_map.to_vec(), vec![(25..75, false)]);
@@ -909,7 +847,7 @@ mod tests {
 
     #[test]
     fn remove_overlapping_start_of_stored() {
-        let mut range_map: RangeMap<u32, bool> = RangeMap::new();
+        let mut range_map: RangeMap<Range<u32>, bool> = RangeMap::new();
         range_map.insert(25..75, false);
         range_map.remove(0..30);
         assert_eq!(range_map.to_vec(), vec![(30..75, false)]);
@@ -917,7 +855,7 @@ mod tests {
 
     #[test]
     fn remove_middle_of_stored() {
-        let mut range_map: RangeMap<u32, bool> = RangeMap::new();
+        let mut range_map: RangeMap<Range<u32>, bool> = RangeMap::new();
         range_map.insert(25..75, false);
         range_map.remove(30..70);
         assert_eq!(range_map.to_vec(), vec![(25..30, false), (70..75, false)]);
@@ -925,7 +863,7 @@ mod tests {
 
     #[test]
     fn remove_overlapping_end_of_stored() {
-        let mut range_map: RangeMap<u32, bool> = RangeMap::new();
+        let mut range_map: RangeMap<Range<u32>, bool> = RangeMap::new();
         range_map.insert(25..75, false);
         range_map.remove(70..100);
         assert_eq!(range_map.to_vec(), vec![(25..70, false)]);
@@ -933,7 +871,7 @@ mod tests {
 
     #[test]
     fn remove_exactly_stored() {
-        let mut range_map: RangeMap<u32, bool> = RangeMap::new();
+        let mut range_map: RangeMap<Range<u32>, bool> = RangeMap::new();
         range_map.insert(25..75, false);
         range_map.remove(25..75);
         assert_eq!(range_map.to_vec(), vec![]);
@@ -941,7 +879,7 @@ mod tests {
 
     #[test]
     fn remove_superset_of_stored() {
-        let mut range_map: RangeMap<u32, bool> = RangeMap::new();
+        let mut range_map: RangeMap<Range<u32>, bool> = RangeMap::new();
         range_map.insert(25..75, false);
         range_map.remove(0..100);
         assert_eq!(range_map.to_vec(), vec![]);
@@ -953,7 +891,7 @@ mod tests {
     fn whole_range_is_a_gap() {
         // 0 1 2 3 4 5 6 7 8 9
         // ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌
-        let range_map: RangeMap<u32, ()> = RangeMap::new();
+        let range_map: RangeMap<Range<u32>, ()> = RangeMap::new();
         // 0 1 2 3 4 5 6 7 8 9
         // ◌ ◆-------------◇ ◌
         let outer_range = 1..8;
@@ -968,7 +906,7 @@ mod tests {
 
     #[test]
     fn whole_range_is_covered_exactly() {
-        let mut range_map: RangeMap<u32, ()> = RangeMap::new();
+        let mut range_map: RangeMap<Range<u32>, ()> = RangeMap::new();
         // 0 1 2 3 4 5 6 7 8 9
         // ◌ ●---------◌ ◌ ◌ ◌
         range_map.insert(1..6, ());
@@ -985,7 +923,7 @@ mod tests {
 
     #[test]
     fn item_before_outer_range() {
-        let mut range_map: RangeMap<u32, ()> = RangeMap::new();
+        let mut range_map: RangeMap<Range<u32>, ()> = RangeMap::new();
         // 0 1 2 3 4 5 6 7 8 9
         // ◌ ●---◌ ◌ ◌ ◌ ◌ ◌ ◌
         range_map.insert(1..3, ());
@@ -1003,7 +941,7 @@ mod tests {
 
     #[test]
     fn item_touching_start_of_outer_range() {
-        let mut range_map: RangeMap<u32, ()> = RangeMap::new();
+        let mut range_map: RangeMap<Range<u32>, ()> = RangeMap::new();
         // 0 1 2 3 4 5 6 7 8 9
         // ◌ ●-------◌ ◌ ◌ ◌ ◌
         range_map.insert(1..5, ());
@@ -1021,7 +959,7 @@ mod tests {
 
     #[test]
     fn item_overlapping_start_of_outer_range() {
-        let mut range_map: RangeMap<u32, ()> = RangeMap::new();
+        let mut range_map: RangeMap<Range<u32>, ()> = RangeMap::new();
         // 0 1 2 3 4 5 6 7 8 9
         // ◌ ●---------◌ ◌ ◌ ◌
         range_map.insert(1..6, ());
@@ -1040,7 +978,7 @@ mod tests {
 
     #[test]
     fn item_starting_at_start_of_outer_range() {
-        let mut range_map: RangeMap<u32, ()> = RangeMap::new();
+        let mut range_map: RangeMap<Range<u32>, ()> = RangeMap::new();
         // 0 1 2 3 4 5 6 7 8 9
         // ◌ ◌ ◌ ◌ ◌ ●-◌ ◌ ◌ ◌
         range_map.insert(5..6, ());
@@ -1058,7 +996,7 @@ mod tests {
 
     #[test]
     fn items_floating_inside_outer_range() {
-        let mut range_map: RangeMap<u32, ()> = RangeMap::new();
+        let mut range_map: RangeMap<Range<u32>, ()> = RangeMap::new();
         // 0 1 2 3 4 5 6 7 8 9
         // ◌ ◌ ◌ ◌ ◌ ●-◌ ◌ ◌ ◌
         range_map.insert(5..6, ());
@@ -1082,7 +1020,7 @@ mod tests {
 
     #[test]
     fn item_ending_at_end_of_outer_range() {
-        let mut range_map: RangeMap<u32, ()> = RangeMap::new();
+        let mut range_map: RangeMap<Range<u32>, ()> = RangeMap::new();
         // 0 1 2 3 4 5 6 7 8 9
         // ◌ ◌ ◌ ◌ ◌ ◌ ◌ ●-◌ ◌
         range_map.insert(7..8, ());
@@ -1101,7 +1039,7 @@ mod tests {
 
     #[test]
     fn item_overlapping_end_of_outer_range() {
-        let mut range_map: RangeMap<u32, ()> = RangeMap::new();
+        let mut range_map: RangeMap<Range<u32>, ()> = RangeMap::new();
         // 0 1 2 3 4 5 6 7 8 9
         // ◌ ◌ ◌ ◌ ●---◌ ◌ ◌ ◌
         range_map.insert(4..6, ());
@@ -1120,7 +1058,7 @@ mod tests {
 
     #[test]
     fn item_touching_end_of_outer_range() {
-        let mut range_map: RangeMap<u32, ()> = RangeMap::new();
+        let mut range_map: RangeMap<Range<u32>, ()> = RangeMap::new();
         // 0 1 2 3 4 5 6 7 8 9
         // ◌ ◌ ◌ ◌ ●-------◌ ◌
         range_map.insert(4..8, ());
@@ -1138,7 +1076,7 @@ mod tests {
 
     #[test]
     fn item_after_outer_range() {
-        let mut range_map: RangeMap<u32, ()> = RangeMap::new();
+        let mut range_map: RangeMap<Range<u32>, ()> = RangeMap::new();
         // 0 1 2 3 4 5 6 7 8 9
         // ◌ ◌ ◌ ◌ ◌ ◌ ●---◌ ◌
         range_map.insert(6..7, ());
@@ -1156,7 +1094,7 @@ mod tests {
 
     #[test]
     fn empty_outer_range_with_items_away_from_both_sides() {
-        let mut range_map: RangeMap<u32, ()> = RangeMap::new();
+        let mut range_map: RangeMap<Range<u32>, ()> = RangeMap::new();
         // 0 1 2 3 4 5 6 7 8 9
         // ◌ ◆---◇ ◌ ◌ ◌ ◌ ◌ ◌
         range_map.insert(1..3, ());
@@ -1175,7 +1113,7 @@ mod tests {
 
     #[test]
     fn empty_outer_range_with_items_touching_both_sides() {
-        let mut range_map: RangeMap<u32, ()> = RangeMap::new();
+        let mut range_map: RangeMap<Range<u32>, ()> = RangeMap::new();
         // 0 1 2 3 4 5 6 7 8 9
         // ◌ ◌ ◆---◇ ◌ ◌ ◌ ◌ ◌ ◌
         range_map.insert(2..4, ());
@@ -1195,7 +1133,7 @@ mod tests {
 
     #[test]
     fn empty_outer_range_with_item_straddling() {
-        let mut range_map: RangeMap<u32, ()> = RangeMap::new();
+        let mut range_map: RangeMap<Range<u32>, ()> = RangeMap::new();
         // 0 1 2 3 4 5 6 7 8 9
         // ◌ ◌ ◆-----◇ ◌ ◌ ◌ ◌ ◌
         range_map.insert(2..5, ());
@@ -1214,7 +1152,7 @@ mod tests {
     fn no_empty_gaps() {
         // Make two ranges different values so they don't
         // get coalesced.
-        let mut range_map: RangeMap<u32, bool> = RangeMap::new();
+        let mut range_map: RangeMap<Range<u32>, bool> = RangeMap::new();
         // 0 1 2 3 4 5 6 7 8 9
         // ◌ ◌ ◌ ◌ ●-◌ ◌ ◌ ◌ ◌
         range_map.insert(4..5, true);
@@ -1238,7 +1176,7 @@ mod tests {
     #[test]
     fn adjacent_small_items() {
         // Items two items next to each other at the start, and at the end.
-        let mut range_map: RangeMap<u8, bool> = RangeMap::new();
+        let mut range_map: RangeMap<Range<u32>, bool> = RangeMap::new();
         range_map.insert(0..1, false);
         range_map.insert(1..2, true);
         range_map.insert(253..254, false);
@@ -1256,7 +1194,7 @@ mod tests {
     // This test fails in v1.0.2
     #[test]
     fn outer_range_lies_within_first_of_two_stored_ranges() {
-        let mut range_map: RangeMap<u64, ()> = RangeMap::new();
+        let mut range_map: RangeMap<Range<u32>, ()> = RangeMap::new();
         // 0 1 2 3 4 5 6 7 8 9
         // ◆----------◇ ◌ ◌ ◌ ◌
         range_map.insert(0..5, ());
@@ -1265,7 +1203,7 @@ mod tests {
         range_map.insert(6..8, ());
         // 0 1 2 3 4 5 6 7 8 9
         // ◌ ◆--◇ ◌  ◌  ◌  ◌  ◌
-        let outer_range: Range<u64> = 1..3;
+        let outer_range: Range<u32> = 1..3;
         let mut gaps = range_map.gaps(&outer_range);
         assert_eq!(gaps.next(), None);
     }
@@ -1276,7 +1214,7 @@ mod tests {
 
     #[test]
     fn map_debug_repr_looks_right() {
-        let mut map: RangeMap<u32, ()> = RangeMap::new();
+        let mut map: RangeMap<Range<u32>, ()> = RangeMap::new();
 
         // Empty
         assert_eq!(format!("{:?}", map), "{}");
@@ -1296,7 +1234,7 @@ mod tests {
     #[test]
     fn into_iter_matches_iter() {
         // Just use vec since that's the same implementation we'd expect
-        let mut range_map: RangeMap<u32, bool> = RangeMap::new();
+        let mut range_map: RangeMap<Range<u32>, bool> = RangeMap::new();
         range_map.insert(1..3, false);
         range_map.insert(3..5, true);
 
@@ -1308,33 +1246,5 @@ mod tests {
 
         // Equality
         assert_eq!(cloned, consumed);
-    }
-
-    // impl Serialize
-
-    #[cfg(feature = "serde1")]
-    #[test]
-    fn serialization() {
-        let mut range_map: RangeMap<u32, bool> = RangeMap::new();
-        // 0 1 2 3 4 5 6 7 8 9
-        // ◌ ◆---◇ ◌ ◌ ◌ ◌ ◌ ◌
-        range_map.insert(1..3, false);
-        // 0 1 2 3 4 5 6 7 8 9
-        // ◌ ◌ ◌ ◌ ◌ ◆---◇ ◌ ◌
-        range_map.insert(5..7, true);
-        let output = serde_json::to_string(&range_map).expect("Failed to serialize");
-        assert_eq!(output, "[[[1,3],false],[[5,7],true]]");
-    }
-
-    // impl Deserialize
-
-    #[cfg(feature = "serde1")]
-    #[test]
-    fn deserialization() {
-        let input = "[[[1,3],false],[[5,7],true]]";
-        let range_map: RangeMap<u32, bool> =
-            serde_json::from_str(input).expect("Failed to deserialize");
-        let reserialized = serde_json::to_string(&range_map).expect("Failed to re-serialize");
-        assert_eq!(reserialized, input);
     }
 }

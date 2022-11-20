@@ -62,11 +62,11 @@ where
     }
 }
 
-impl<V> From<RangeMap<u32, V>> for DenseU32RangeMap<V>
+impl<V> From<RangeMap<Range<u32>, V>> for DenseU32RangeMap<V>
 where
     V: Eq + Clone,
 {
-    fn from(range_map: RangeMap<u32, V>) -> Self {
+    fn from(range_map: RangeMap<Range<u32>, V>) -> Self {
         let mut dense = Self::new();
         for (range, value) in range_map.iter() {
             // Convert to inclusive end.
