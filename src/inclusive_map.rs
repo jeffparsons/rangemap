@@ -126,6 +126,7 @@ where
     ///
     /// See [this issue](https://github.com/rust-lang/rust/issues/42168)
     /// for details about that stabilization process.
+    #[cfg(not(feature = "const_fn"))]
     pub fn new_with_step_fns() -> Self {
         Self {
             btm: BTreeMap::new(),
@@ -133,6 +134,13 @@ where
         }
     }
 
+    #[cfg(feature = "const_fn")]
+    pub const fn new_with_step_fns() -> Self {
+        Self {
+            btm: BTreeMap::new(),
+            _phantom: PhantomData,
+        }
+    }
     /// Returns a reference to the value corresponding to the given key,
     /// if the key is covered by any range in the map.
     pub fn get(&self, key: &K) -> Option<&V> {

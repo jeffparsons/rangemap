@@ -101,7 +101,15 @@ where
     ///
     /// See [this issue](https://github.com/rust-lang/rust/issues/42168)
     /// for details about that stabilization process.
+    #[cfg(not(feature = "const_fn"))]
     pub fn new_with_step_fns() -> Self {
+        Self {
+            rm: RangeInclusiveMap::new_with_step_fns(),
+        }
+    }
+
+    #[cfg(feature = "const_fn")]
+    pub const fn new_with_step_fns() -> Self {
         Self {
             rm: RangeInclusiveMap::new_with_step_fns(),
         }
