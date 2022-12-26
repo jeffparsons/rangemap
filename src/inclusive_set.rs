@@ -481,4 +481,11 @@ mod tests {
         let reserialized = serde_json::to_string(&range_set).expect("Failed to re-serialize");
         assert_eq!(reserialized, input);
     }
+
+    // const fn
+
+    #[cfg(feature = "const_fn")]
+    const _SET: RangeInclusiveSet<u32> = RangeInclusiveSet::new();
+    #[cfg(feature = "const_fn")]
+    const _SET2: RangeInclusiveSet<u32> = RangeInclusiveSet::new_with_step_fns();
 }

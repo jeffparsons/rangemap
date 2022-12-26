@@ -447,4 +447,9 @@ mod tests {
         let reserialized = serde_json::to_string(&range_set).expect("Failed to re-serialize");
         assert_eq!(reserialized, input);
     }
+
+    // const fn
+
+    #[cfg(feature = "const_fn")]
+    const _SET: RangeSet<u32> = RangeSet::new();
 }

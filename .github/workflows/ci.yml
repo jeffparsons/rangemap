@@ -46,6 +46,13 @@ jobs:
         with:
           command: test
           args: --features serde1
+      # Make sure we haven't broken the const_fn feature.
+      - name: stable test with const_fn
+        uses: actions-rs/cargo@v1
+        if: matrix.toolchain == 'stable'
+        with:
+          command: test
+          args: --features const_fn
       - name: nightly test
         uses: actions-rs/cargo@v1
         if: matrix.toolchain == 'nightly'

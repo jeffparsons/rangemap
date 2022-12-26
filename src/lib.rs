@@ -129,7 +129,6 @@ book for general information about operating without the standard library.
 */
 
 #![no_std]
-#![cfg_attr(feature = "const_fn", feature(const_btree_new))]
 extern crate alloc;
 
 pub mod inclusive_map;

@@ -1472,4 +1472,11 @@ mod tests {
         let reserialized = serde_json::to_string(&range_map).expect("Failed to re-serialize");
         assert_eq!(reserialized, input);
     }
+
+    // const fn
+
+    #[cfg(feature = "const_fn")]
+    const _MAP: RangeInclusiveMap<u32, bool> = RangeInclusiveMap::new();
+    #[cfg(feature = "const_fn")]
+    const _MAP2: RangeInclusiveMap<u32, bool> = RangeInclusiveMap::new_with_step_fns();
 }
