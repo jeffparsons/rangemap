@@ -1,3 +1,11 @@
+### v1.2.0 (2022-12-27)
+
+- **Features**:
+    - Add `clear`, `len`, and `is_empty` methods for all map and set types.
+- **Fixes**:
+    - Make `const_fn` feature work again. (Previous release accidentally broke the const versions of `RangeMap::new` and `RangeSet::new`.)
+
+
 ### v1.1.0 (2022-11-12)
 
 - **Features**:
