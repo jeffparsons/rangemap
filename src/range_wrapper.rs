@@ -130,18 +130,26 @@ where
     }
 }
 
+impl<T> core::borrow::Borrow<RangeInclusiveEndWrapper<T>> for RangeInclusiveStartWrapper<T> {
+    fn borrow(&self) -> &RangeInclusiveEndWrapper<T> {
+        &self.end_wrapper
+    }
+}
+
 //
 // RangeInclusive start wrapper
 //
 
 #[derive(Eq, Debug, Clone)]
 pub struct RangeInclusiveStartWrapper<T> {
-    pub range: RangeInclusive<T>,
+    pub end_wrapper: RangeInclusiveEndWrapper<T>,
 }
 
 impl<T> RangeInclusiveStartWrapper<T> {
     pub fn new(range: RangeInclusive<T>) -> RangeInclusiveStartWrapper<T> {
-        RangeInclusiveStartWrapper { range }
+        RangeInclusiveStartWrapper {
+            end_wrapper: RangeInclusiveEndWrapper::new(range),
+        }
     }
 }
 
@@ -150,7 +158,7 @@ where
     T: PartialEq,
 {
     fn eq(&self, other: &RangeInclusiveStartWrapper<T>) -> bool {
-        self.range.start() == other.range.start()
+        self.end_wrapper.range.start() == other.end_wrapper.range.start()
     }
 }
 
@@ -159,7 +167,10 @@ where
     T: Ord,
 {
     fn cmp(&self, other: &RangeInclusiveStartWrapper<T>) -> Ordering {
-        self.range.start().cmp(other.range.start())
+        self.end_wrapper
+            .range
+            .start()
+            .cmp(other.end_wrapper.range.start())
     }
 }
 
@@ -168,6 +179,51 @@ where
     T: PartialOrd,
 {
     fn partial_cmp(&self, other: &RangeInclusiveStartWrapper<T>) -> Option<Ordering> {
-        self.range.start().partial_cmp(other.range.start())
+        self.end_wrapper
+            .range
+            .start()
+            .partial_cmp(other.end_wrapper.range.start())
+    }
+}
+
+//
+// RangeInclusive end wrapper
+//
+
+#[derive(Eq, Debug, Clone)]
+pub struct RangeInclusiveEndWrapper<T> {
+    pub range: RangeInclusive<T>,
+}
+
+impl<T> RangeInclusiveEndWrapper<T> {
+    pub fn new(range: RangeInclusive<T>) -> RangeInclusiveEndWrapper<T> {
+        RangeInclusiveEndWrapper { range }
+    }
+}
+
+impl<T> PartialEq for RangeInclusiveEndWrapper<T>
+where
+    T: PartialEq,
+{
+    fn eq(&self, other: &RangeInclusiveEndWrapper<T>) -> bool {
+        self.range.end() == other.range.end()
+    }
+}
+
+impl<T> Ord for RangeInclusiveEndWrapper<T>
+where
+    T: Ord,
+{
+    fn cmp(&self, other: &RangeInclusiveEndWrapper<T>) -> Ordering {
+        self.range.end().cmp(other.range.end())
+    }
+}
+
+impl<T> PartialOrd for RangeInclusiveEndWrapper<T>
+where
+    T: PartialOrd,
+{
+    fn partial_cmp(&self, other: &RangeInclusiveEndWrapper<T>) -> Option<Ordering> {
+        self.range.end().partial_cmp(other.range.end())
     }
 }
