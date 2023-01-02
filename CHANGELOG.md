@@ -1,3 +1,9 @@
+### (unreleased) (2023-01-??)
+
+- **Features**:
+    - Add `overlapping` method to `RangeMap`, which returns an iterator over all stored range/value pairs that are completely or partially overlapped by a given range.
+
+
 ### v1.2.0 (2022-12-27)
 
 - **Features**:
