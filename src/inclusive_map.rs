@@ -162,9 +162,9 @@ where
             .filter(|(range_start_wrapper, _value)| {
                 // Does the only candidate range contain
                 // the requested key?
-                range_start_wrapper.end_wrapper.range.contains(key)
+                range_start_wrapper.contains(key)
             })
-            .map(|(range_start_wrapper, value)| (&range_start_wrapper.end_wrapper.range, value))
+            .map(|(range_start_wrapper, value)| (&range_start_wrapper.range, value))
     }
 
     /// Returns `true` if any range in the map covers the specified key.
@@ -250,8 +250,6 @@ where
                 // (Remember that it might actually cover the _whole_
                 // range to insert and then some.)
                 stored_range_start_wrapper
-                    .end_wrapper
-                    .range
                     .touches::<StepFnsT>(&new_range_start_wrapper.end_wrapper.range)
             });
         if let Some(mut candidate) = candidates.next() {
@@ -280,7 +278,7 @@ where
         //
         // REVISIT: Possible micro-optimisation: `impl Borrow<T> for RangeInclusiveStartWrapper<T>`
         // and use that to search here, to avoid constructing another `RangeInclusiveStartWrapper`.
-        let second_last_possible_start = new_range_start_wrapper.end_wrapper.range.end().clone();
+        let second_last_possible_start = new_range_start_wrapper.end().clone();
         let second_last_possible_start = RangeInclusiveStartWrapper::new(
             second_last_possible_start.clone()..=second_last_possible_start,
         );
@@ -302,10 +300,9 @@ where
             // end of the subset of stored ranges we want to consider,
             // in part because we use `Bound::Unbounded` above.
             // (See comments up there, and in the individual cases below.)
-            let stored_start = stored_range_start_wrapper.end_wrapper.range.start();
-            if *stored_start > *second_last_possible_start.end_wrapper.range.start() {
-                let latest_possible_start =
-                    StepFnsT::add_one(second_last_possible_start.end_wrapper.range.start());
+            let stored_start = stored_range_start_wrapper.start();
+            if *stored_start > *second_last_possible_start.start() {
+                let latest_possible_start = StepFnsT::add_one(second_last_possible_start.start());
                 if *stored_start > latest_possible_start {
                     // We're beyond the last stored range that could be relevant.
                     // Avoid wasting time on irrelevant ranges, or even worse, looping forever.
@@ -364,7 +361,7 @@ where
 
         let range_start_wrapper: RangeInclusiveStartWrapper<K> =
             RangeInclusiveStartWrapper::new(range);
-        let range = &range_start_wrapper.end_wrapper.range;
+        let range = &range_start_wrapper.range;
 
         // Is there a stored range overlapping the start of
         // the range to insert?
@@ -381,7 +378,7 @@ where
             .filter(|(stored_range_start_wrapper, _stored_value)| {
                 // Does the only candidate range overlap
                 // the range to insert?
-                stored_range_start_wrapper.end_wrapper.range.overlaps(range)
+                stored_range_start_wrapper.overlaps(range)
             })
             .map(|(stored_range_start_wrapper, stored_value)| {
                 (stored_range_start_wrapper.clone(), stored_value.clone())
@@ -442,41 +439,33 @@ where
             // This means that no matter how big or where the stored range is,
             // we will expand the new range's bounds to subsume it,
             // and then delete the stored range.
-            let new_start = min(
-                new_range.start(),
-                stored_range_start_wrapper.end_wrapper.range.start(),
-            )
-            .clone();
-            let new_end = max(
-                new_range.end(),
-                stored_range_start_wrapper.end_wrapper.range.end(),
-            )
-            .clone();
+            let new_start = min(new_range.start(), stored_range_start_wrapper.start()).clone();
+            let new_end = max(new_range.end(), stored_range_start_wrapper.end()).clone();
             *new_range = new_start..=new_end;
             self.btm.remove(&stored_range_start_wrapper);
         } else {
             // The ranges have different values.
-            if new_range.overlaps(&stored_range_start_wrapper.end_wrapper.range) {
+            if new_range.overlaps(&stored_range_start_wrapper.range) {
                 // The ranges overlap. This is a little bit more complicated.
                 // Delete the stored range, and then add back between
                 // 0 and 2 subranges at the ends of the range to insert.
                 self.btm.remove(&stored_range_start_wrapper);
-                if stored_range_start_wrapper.end_wrapper.range.start() < new_range.start() {
+                if stored_range_start_wrapper.start() < new_range.start() {
                     // Insert the piece left of the range to insert.
                     self.btm.insert(
                         RangeInclusiveStartWrapper::new(
-                            stored_range_start_wrapper.end_wrapper.range.start().clone()
+                            stored_range_start_wrapper.start().clone()
                                 ..=StepFnsT::sub_one(new_range.start()),
                         ),
                         stored_value.clone(),
                     );
                 }
-                if stored_range_start_wrapper.end_wrapper.range.end() > new_range.end() {
+                if stored_range_start_wrapper.end() > new_range.end() {
                     // Insert the piece right of the range to insert.
                     self.btm.insert(
                         RangeInclusiveStartWrapper::new(
                             StepFnsT::add_one(new_range.end())
-                                ..=stored_range_start_wrapper.end_wrapper.range.end().clone(),
+                                ..=stored_range_start_wrapper.end().clone(),
                         ),
                         stored_value,
                     );
@@ -575,9 +564,7 @@ where
     type Item = (&'a RangeInclusive<K>, &'a V);
 
     fn next(&mut self) -> Option<(&'a RangeInclusive<K>, &'a V)> {
-        self.inner
-            .next()
-            .map(|(by_start, v)| (&by_start.end_wrapper.range, v))
+        self.inner.next().map(|(by_start, v)| (&by_start.range, v))
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
@@ -770,7 +757,7 @@ where
         }
 
         for item in &mut self.keys {
-            let range = &item.end_wrapper.range;
+            let range = &item.range;
             if *range.end() < self.candidate_start {
                 // We're already completely past it; ignore it.
             } else if *range.start() <= self.candidate_start {
@@ -834,8 +821,8 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         if let Some((k, v)) = self.btm_range_iter.next() {
-            if k.end_wrapper.range.start() <= self.query_range.end() {
-                Some((&k.end_wrapper.range, v))
+            if k.start() <= self.query_range.end() {
+                Some((&k.range, v))
             } else {
                 // The rest of the items in the underlying iterator
                 // are past the query range. We can keep taking items

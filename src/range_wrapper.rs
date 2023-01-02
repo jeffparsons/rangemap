@@ -26,7 +26,7 @@
 // inner range!
 
 use core::cmp::Ordering;
-use core::ops::{Range, RangeInclusive};
+use core::ops::{Deref, Range, RangeInclusive};
 
 //
 // Range start wrapper
@@ -34,13 +34,13 @@ use core::ops::{Range, RangeInclusive};
 
 #[derive(Debug, Clone)]
 pub struct RangeStartWrapper<T> {
-    pub range_end_wrapper: RangeEndWrapper<T>,
+    pub end_wrapper: RangeEndWrapper<T>,
 }
 
 impl<T> RangeStartWrapper<T> {
     pub fn new(range: Range<T>) -> RangeStartWrapper<T> {
         RangeStartWrapper {
-            range_end_wrapper: RangeEndWrapper::new(range),
+            end_wrapper: RangeEndWrapper::new(range),
         }
     }
 }
@@ -50,7 +50,7 @@ where
     T: PartialEq,
 {
     fn eq(&self, other: &RangeStartWrapper<T>) -> bool {
-        self.range_end_wrapper.range.start == other.range_end_wrapper.range.start
+        self.start == other.start
     }
 }
 
@@ -61,10 +61,7 @@ where
     T: Ord,
 {
     fn cmp(&self, other: &RangeStartWrapper<T>) -> Ordering {
-        self.range_end_wrapper
-            .range
-            .start
-            .cmp(&other.range_end_wrapper.range.start)
+        self.start.cmp(&other.start)
     }
 }
 
@@ -73,16 +70,23 @@ where
     T: PartialOrd,
 {
     fn partial_cmp(&self, other: &RangeStartWrapper<T>) -> Option<Ordering> {
-        self.range_end_wrapper
-            .range
-            .start
-            .partial_cmp(&other.range_end_wrapper.range.start)
+        self.start.partial_cmp(&other.start)
     }
 }
 
 impl<T> core::borrow::Borrow<RangeEndWrapper<T>> for RangeStartWrapper<T> {
     fn borrow(&self) -> &RangeEndWrapper<T> {
-        &self.range_end_wrapper
+        &self.end_wrapper
+    }
+}
+
+// Avoid the need to tediously plumb through the layers of wrapper structs
+// when you're just trying to access members of the inner range itself.
+impl<T> Deref for RangeStartWrapper<T> {
+    type Target = RangeEndWrapper<T>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.end_wrapper
     }
 }
 
@@ -106,7 +110,7 @@ where
     T: PartialEq,
 {
     fn eq(&self, other: &RangeEndWrapper<T>) -> bool {
-        self.range.end == other.range.end
+        self.end == other.end
     }
 }
 
@@ -117,7 +121,7 @@ where
     T: Ord,
 {
     fn cmp(&self, other: &RangeEndWrapper<T>) -> Ordering {
-        self.range.end.cmp(&other.range.end)
+        self.end.cmp(&other.end)
     }
 }
 
@@ -126,13 +130,17 @@ where
     T: PartialOrd,
 {
     fn partial_cmp(&self, other: &RangeEndWrapper<T>) -> Option<Ordering> {
-        self.range.end.partial_cmp(&other.range.end)
+        self.end.partial_cmp(&other.end)
     }
 }
 
-impl<T> core::borrow::Borrow<RangeInclusiveEndWrapper<T>> for RangeInclusiveStartWrapper<T> {
-    fn borrow(&self) -> &RangeInclusiveEndWrapper<T> {
-        &self.end_wrapper
+// Avoid the need to tediously plumb through the layers of wrapper structs
+// when you're just trying to access members of the inner range itself.
+impl<T> Deref for RangeEndWrapper<T> {
+    type Target = Range<T>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.range
     }
 }
 
@@ -158,7 +166,7 @@ where
     T: PartialEq,
 {
     fn eq(&self, other: &RangeInclusiveStartWrapper<T>) -> bool {
-        self.end_wrapper.range.start() == other.end_wrapper.range.start()
+        self.start() == other.start()
     }
 }
 
@@ -167,10 +175,7 @@ where
     T: Ord,
 {
     fn cmp(&self, other: &RangeInclusiveStartWrapper<T>) -> Ordering {
-        self.end_wrapper
-            .range
-            .start()
-            .cmp(other.end_wrapper.range.start())
+        self.start().cmp(other.start())
     }
 }
 
@@ -179,10 +184,23 @@ where
     T: PartialOrd,
 {
     fn partial_cmp(&self, other: &RangeInclusiveStartWrapper<T>) -> Option<Ordering> {
-        self.end_wrapper
-            .range
-            .start()
-            .partial_cmp(other.end_wrapper.range.start())
+        self.start().partial_cmp(other.start())
+    }
+}
+
+impl<T> core::borrow::Borrow<RangeInclusiveEndWrapper<T>> for RangeInclusiveStartWrapper<T> {
+    fn borrow(&self) -> &RangeInclusiveEndWrapper<T> {
+        &self.end_wrapper
+    }
+}
+
+// Avoid the need to tediously plumb through the layers of wrapper structs
+// when you're just trying to access members of the inner range itself.
+impl<T> Deref for RangeInclusiveStartWrapper<T> {
+    type Target = RangeInclusiveEndWrapper<T>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.end_wrapper
     }
 }
 
@@ -206,7 +224,7 @@ where
     T: PartialEq,
 {
     fn eq(&self, other: &RangeInclusiveEndWrapper<T>) -> bool {
-        self.range.end() == other.range.end()
+        self.end() == other.end()
     }
 }
 
@@ -215,7 +233,7 @@ where
     T: Ord,
 {
     fn cmp(&self, other: &RangeInclusiveEndWrapper<T>) -> Ordering {
-        self.range.end().cmp(other.range.end())
+        self.end().cmp(other.end())
     }
 }
 
@@ -224,6 +242,16 @@ where
     T: PartialOrd,
 {
     fn partial_cmp(&self, other: &RangeInclusiveEndWrapper<T>) -> Option<Ordering> {
-        self.range.end().partial_cmp(other.range.end())
+        self.end().partial_cmp(other.end())
+    }
+}
+
+// Avoid the need to tediously plumb through the layers of wrapper structs
+// when you're just trying to access members of the inner range itself.
+impl<T> Deref for RangeInclusiveEndWrapper<T> {
+    type Target = RangeInclusive<T>;
+
+    fn deref(&self) -> &Self::Target {
+        &self.range
     }
 }
