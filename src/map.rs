@@ -5,7 +5,7 @@ use alloc::collections::BTreeMap;
 use core::cmp::Ordering;
 use core::fmt::{self, Debug};
 use core::iter::FromIterator;
-use core::ops::{Range, RangeFrom};
+use core::ops::{Bound, Range};
 use core::prelude::v1::*;
 
 #[cfg(feature = "serde1")]
@@ -107,8 +107,6 @@ where
     /// Returns the range-value pair (as a pair of references) corresponding
     /// to the given key, if the key is covered by any range in the map.
     pub fn get_key_value(&self, key: &K) -> Option<(&Range<K>, &V)> {
-        use core::ops::Bound;
-
         // The only stored range that could contain the given key is the
         // last stored range whose start is less than or equal to this key.
         let key_as_start = RangeStartWrapper::new(key.clone()..key.clone());
@@ -169,8 +167,6 @@ where
     ///
     /// Panics if range `start >= end`.
     pub fn insert(&mut self, range: Range<K>, value: V) {
-        use core::ops::Bound;
-
         // We don't want to have to make empty ranges make sense;
         // they don't represent anything meaningful in this structure.
         assert!(range.start < range.end);
@@ -286,8 +282,6 @@ where
     ///
     /// Panics if range `start >= end`.
     pub fn remove(&mut self, range: Range<K>) {
-        use core::ops::Bound;
-
         // We don't want to have to make empty ranges make sense;
         // they don't represent anything meaningful in this structure.
         assert!(range.start < range.end);
@@ -466,7 +460,10 @@ where
         let start_sliver = RangeEndWrapper::new(range.start.clone()..range.start.clone());
         let btm_range_iter = self
             .btm
-            .range::<RangeEndWrapper<K>, RangeFrom<&RangeEndWrapper<K>>>(&start_sliver..);
+            .range::<RangeEndWrapper<K>, (Bound<&RangeEndWrapper<K>>, Bound<_>)>((
+                Bound::Excluded(&start_sliver),
+                Bound::Unbounded,
+            ));
         Overlapping {
             query_range: range,
             btm_range_iter,
@@ -726,13 +723,7 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         if let Some((k, v)) = self.btm_range_iter.next() {
-            if k.range_end_wrapper.range.end == self.query_range.start {
-                // Special case: if the query range starts exactly at the
-                // end of a stored range, our underlying iterator will contain
-                // one range that isn't actually overlapped by the query range,
-                // so we need to skip it.
-                self.next()
-            } else if k.range_end_wrapper.range.start < self.query_range.end {
+            if k.range_end_wrapper.range.start < self.query_range.end {
                 Some((&k.range_end_wrapper.range, v))
             } else {
                 // The rest of the items in the underlying iterator
