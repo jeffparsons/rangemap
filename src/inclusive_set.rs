@@ -184,6 +184,22 @@ where
             inner: self.rm.gaps(outer_range),
         }
     }
+
+    /// Gets an iterator over all the stored ranges that are
+    /// either partially or completely overlapped by the given range.
+    ///
+    /// The iterator element type is `RangeInclusive<T>`.
+    pub fn overlapping<'a>(&'a self, range: &'a RangeInclusive<T>) -> Overlapping<T> {
+        Overlapping {
+            inner: self.rm.overlapping(range),
+        }
+    }
+
+    /// Returns `true` if any range in the set completely or partially
+    /// overlaps the given range.
+    pub fn overlaps(&self, range: &RangeInclusive<T>) -> bool {
+        self.overlapping(range).next().is_some()
+    }
 }
 
 /// An iterator over the ranges of a `RangeInclusiveSet`.
@@ -370,6 +386,31 @@ where
     }
 }
 
+/// An iterator over all stored ranges partially or completely
+/// overlapped by a given range.
+///
+/// This `struct` is created by the [`overlapping`] method on [`RangeInclusiveSet`]. See its
+/// documentation for more.
+///
+/// [`overlapping`]: RangeInclusiveSet::overlapping
+pub struct Overlapping<'a, T> {
+    inner: crate::inclusive_map::Overlapping<'a, T, ()>,
+}
+
+// `Overlapping` is always fused. (See definition of `next` below.)
+impl<'a, T> core::iter::FusedIterator for Overlapping<'a, T> where T: Ord + Clone {}
+
+impl<'a, T> Iterator for Overlapping<'a, T>
+where
+    T: Ord + Clone,
+{
+    type Item = &'a RangeInclusive<T>;
+
+    fn next(&mut self) -> Option<Self::Item> {
+        self.inner.next().map(|(k, _v)| k)
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -431,6 +472,37 @@ mod tests {
         // Gaps iterator should be fused.
         assert_eq!(gaps.next(), None);
         assert_eq!(gaps.next(), None);
+    }
+
+    #[test]
+    fn overlapping_partial_edges_complete_middle() {
+        let mut range_set: RangeInclusiveSet<u32> = RangeInclusiveSet::new();
+
+        // 0 1 2 3 4 5 6 7 8 9
+        // ●-● ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌
+        range_set.insert(0..=1);
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ●-● ◌ ◌ ◌ ◌ ◌
+        range_set.insert(3..=4);
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ◌ ◌ ◌ ●-● ◌ ◌
+        range_set.insert(6..=7);
+
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◆---------◆ ◌ ◌ ◌
+        let query_range = 1..=6;
+
+        let mut overlapping = range_set.overlapping(&query_range);
+
+        // Should yield partially overlapped range at start.
+        assert_eq!(overlapping.next(), Some(&(0..=1)));
+        // Should yield completely overlapped range in middle.
+        assert_eq!(overlapping.next(), Some(&(3..=4)));
+        // Should yield partially overlapped range at end.
+        assert_eq!(overlapping.next(), Some(&(6..=7)));
+        // Gaps iterator should be fused.
+        assert_eq!(overlapping.next(), None);
+        assert_eq!(overlapping.next(), None);
     }
 
     ///
