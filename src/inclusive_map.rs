@@ -542,6 +542,12 @@ where
             btm_range_iter,
         }
     }
+
+    /// Returns `true` if any range in the map completely or partially
+    /// overlaps the given range.
+    pub fn overlaps(&self, range: &RangeInclusive<K>) -> bool {
+        self.overlapping(range).next().is_some()
+    }
 }
 
 /// An iterator over the entries of a `RangeInclusiveMap`, ordered by key range.

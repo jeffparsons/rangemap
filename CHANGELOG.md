@@ -1,7 +1,9 @@
 ### (unreleased) (2023-01-??)
 
 - **Features**:
-    - Add `overlapping` method to `RangeMap`, which returns an iterator over all stored range/value pairs that are completely or partially overlapped by a given range.
+    - Add `overlapping` method to all collection types, which returns an iterator over all stored entries that completely or partially overlap a given range.
+    - Add `overlaps` convenience method to all collection types, which returns whether any stored range completely or partially overlaps a given range.
+    - Credit to [Rua](https://github.com/Rua) for the original implementation of these new methods. (Unfortunately I couldn't use their code directly because I made other incompatible changes.) Thanks also to [rumpuslabs](https://github.com/rumpuslabs) for their engagement.
 
 
 ### v1.2.0 (2022-12-27)

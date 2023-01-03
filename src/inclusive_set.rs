@@ -194,6 +194,12 @@ where
             inner: self.rm.overlapping(range),
         }
     }
+
+    /// Returns `true` if any range in the set completely or partially
+    /// overlaps the given range.
+    pub fn overlaps(&self, range: &RangeInclusive<T>) -> bool {
+        self.overlapping(range).next().is_some()
+    }
 }
 
 /// An iterator over the ranges of a `RangeInclusiveSet`.
