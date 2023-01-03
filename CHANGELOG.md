@@ -1,4 +1,4 @@
-### (unreleased) (2023-01-??)
+### v1.3.0 (2023-01-03)
 
 - **Features**:
     - Add `overlapping` method to all collection types, which returns an iterator over all stored entries that completely or partially overlap a given range.
