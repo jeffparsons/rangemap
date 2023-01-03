@@ -53,16 +53,9 @@ fuzz_target!(|input: Input| {
 
     // Check that the combination of gaps and keys fills the entire outer range.
     let gaps: Vec<RangeInclusive<u8>> = map.gaps(&outer_range).collect();
-    // TODO: Replace the filtering and mapping with a `range` iterator
-    // on the map itself.
     let mut keys: Vec<RangeInclusive<u8>> = map
-        .into_iter()
-        .map(|(k, _v)| k)
-        .filter(|range| {
-            // Reject anything with zero of its width inside the outer range.
-            *range.end() >= *outer_range.start() && *range.start() <= *outer_range.end()
-        })
-        .map(|range| {
+        .overlapping(&outer_range)
+        .map(|(range, _value)| {
             // Truncate anything straddling either edge.
             u8::max(*range.start(), *outer_range.start())
                 ..=u8::min(*range.end(), *outer_range.end())
