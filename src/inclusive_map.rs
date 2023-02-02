@@ -527,6 +527,21 @@ where
 
     /// Gets an iterator over all the stored ranges that are
     /// either partially or completely overlapped by the given range.
+    ///
+    /// # Example
+    /// ```
+    /// use rangemap::RangeInclusiveMap;
+    ///
+    /// let mut map: RangeInclusiveMap<u32, &str> = RangeInclusiveMap::new();
+    /// map.insert(0..=1, "a");
+    /// map.insert(3..=4, "b");
+    /// map.insert(5..=7, "c");
+    /// let mut overlapping = map.overlapping(&(1..=6));
+    /// assert_eq!(overlapping.next(), Some((&(0..=1), &"a")));
+    /// assert_eq!(overlapping.next(), Some((&(3..=4), &"b")));
+    /// assert_eq!(overlapping.next(), Some((&(5..=7), &"c")));
+    /// assert_eq!(overlapping.next(), None);
+    /// ```
     pub fn overlapping<'a>(&'a self, range: &'a RangeInclusive<K>) -> Overlapping<K, V> {
         // Find the first matching stored range by its _end_,
         // using sneaky layering and `Borrow` implementation. (See `range_wrappers` module.)
@@ -538,6 +553,43 @@ where
                 &start_sliver..,
             );
         Overlapping {
+            query_range: range,
+            btm_range_iter,
+        }
+    }
+
+    /// Gets a mutable iterator over all the stored ranges that are either
+    /// partially or completely overlapped by the given range.
+    ///
+    /// # Example
+    /// ```
+    /// use rangemap::RangeInclusiveMap;
+    ///
+    /// let mut map: RangeInclusiveMap<u32, u32> = RangeInclusiveMap::new();
+    /// map.insert(0..=1, 1);
+    /// map.insert(3..=4, 2);
+    /// map.insert(6..=7, 3);
+    ///
+    /// for (_range, value) in map.overlapping_mut(&(1..=6)) {
+    ///     *value *= 2;
+    /// }
+    ///
+    /// // Values of all overlapping ranges have been doubled.
+    /// assert_eq!(map.get(&1), Some(&2));
+    /// assert_eq!(map.get(&3), Some(&4));
+    /// assert_eq!(map.get(&6), Some(&6));
+    /// ```
+    pub fn overlapping_mut<'a>(&'a mut self, range: &'a RangeInclusive<K>) -> OverlappingMut<K, V> {
+        // Find the first matching stored range by its _end_,
+        // using sneaky layering and `Borrow` implementation. (See `range_wrappers` module.)
+        let start_sliver =
+            RangeInclusiveEndWrapper::new(range.start().clone()..=range.start().clone());
+        let btm_range_iter = self
+            .btm
+            .range_mut::<RangeInclusiveEndWrapper<K>, RangeFrom<&RangeInclusiveEndWrapper<K>>>(
+                &start_sliver..,
+            );
+        OverlappingMut {
             query_range: range,
             btm_range_iter,
         }
@@ -807,10 +859,8 @@ where
 ///
 /// The iterator element type is `(&'a RangeInclusive<K>, &'a V)`.
 ///
-/// This `struct` is created by the [`overlapping`] method on [`RangeInclusiveMap`]. See its
+/// This `struct` is created by [`RangeInclusiveMap::overlapping`]. See its
 /// documentation for more.
-///
-/// [`overlapping`]: RangeInclusiveMap::overlapping
 pub struct Overlapping<'a, K, V> {
     query_range: &'a RangeInclusive<K>,
     btm_range_iter: alloc::collections::btree_map::Range<'a, RangeInclusiveStartWrapper<K>, V>,
@@ -824,6 +874,44 @@ where
     K: Ord + Clone,
 {
     type Item = (&'a RangeInclusive<K>, &'a V);
+
+    fn next(&mut self) -> Option<Self::Item> {
+        if let Some((k, v)) = self.btm_range_iter.next() {
+            if k.start() <= self.query_range.end() {
+                Some((&k.range, v))
+            } else {
+                // The rest of the items in the underlying iterator
+                // are past the query range. We can keep taking items
+                // from that iterator and this will remain true,
+                // so this is enough to make the iterator fused.
+                None
+            }
+        } else {
+            None
+        }
+    }
+}
+
+/// An iterator over all stored ranges partially or completely
+/// overlapped by a given range.
+///
+/// The iterator element type is `(&'a RangeInclusive<K>, &'a mut V)`.
+///
+/// This `struct` is created by [`RangeInclusiveMap::overlapping_mut`]. See its
+/// documentation for more.
+pub struct OverlappingMut<'a, K, V> {
+    query_range: &'a RangeInclusive<K>,
+    btm_range_iter: alloc::collections::btree_map::RangeMut<'a, RangeInclusiveStartWrapper<K>, V>,
+}
+
+// `Overlapping` is always fused. (See definition of `next` below.)
+impl<'a, K, V> core::iter::FusedIterator for OverlappingMut<'a, K, V> where K: Ord + Clone {}
+
+impl<'a, K, V> Iterator for OverlappingMut<'a, K, V>
+where
+    K: Ord + Clone,
+{
+    type Item = (&'a RangeInclusive<K>, &'a mut V);
 
     fn next(&mut self) -> Option<Self::Item> {
         if let Some((k, v)) = self.btm_range_iter.next() {
@@ -1574,6 +1662,48 @@ mod tests {
         // Gaps iterator should be fused.
         assert_eq!(overlapping.next(), None);
         assert_eq!(overlapping.next(), None);
+    }
+
+    #[test]
+    fn overlapping_mut_with_empty_map() {
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌
+        let mut range_map: RangeInclusiveMap<u32, ()> = RangeInclusiveMap::new();
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◆-------------◆ ◌
+        let query_range = 1..=8;
+        let mut overlapping = range_map.overlapping_mut(&query_range);
+        // Should not yield any items.
+        assert_eq!(overlapping.next(), None);
+        // Gaps iterator should be fused.
+        assert_eq!(overlapping.next(), None);
+    }
+
+    #[test]
+    fn overlapping_mut_partial_edges_complete_middle() {
+        let mut range_map: RangeInclusiveMap<u32, u32> = RangeInclusiveMap::new();
+
+        // 0 1 2 3 4 5 6 7 8 9
+        // ●-● ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌
+        range_map.insert(0..=1, 1);
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ●-● ◌ ◌ ◌ ◌ ◌
+        range_map.insert(3..=4, 2);
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ◌ ◌ ◌ ●-● ◌ ◌
+        range_map.insert(6..=7, 3);
+
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◆---------◆ ◌ ◌ ◌
+        let query_range = 1..=6;
+
+        for (_range, value) in range_map.overlapping_mut(&query_range) {
+            *value *= 2;
+        }
+
+        assert_eq!(range_map.get(&1), Some(&2));
+        assert_eq!(range_map.get(&3), Some(&4));
+        assert_eq!(range_map.get(&6), Some(&6));
     }
 
     ///
