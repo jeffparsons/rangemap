@@ -28,11 +28,7 @@ pub struct RangeMap<K, V> {
     pub(crate) btm: BTreeMap<RangeStartWrapper<K>, V>,
 }
 
-impl<K, V> Default for RangeMap<K, V>
-where
-    K: Ord + Clone,
-    V: Eq + Clone,
-{
+impl<K, V> Default for RangeMap<K, V> {
     fn default() -> Self {
         Self::new()
     }
@@ -77,11 +73,7 @@ where
 {
 }
 
-impl<K, V> RangeMap<K, V>
-where
-    K: Ord + Clone,
-    V: Eq + Clone,
-{
+impl<K, V> RangeMap<K, V> {
     /// Makes a new empty `RangeMap`.
     #[cfg(feature = "const_fn")]
     pub const fn new() -> Self {
@@ -98,6 +90,36 @@ where
         }
     }
 
+    /// Gets an iterator over all pairs of key range and value,
+    /// ordered by key range.
+    ///
+    /// The iterator element type is `(&'a Range<K>, &'a V)`.
+    pub fn iter(&self) -> Iter<'_, K, V> {
+        Iter {
+            inner: self.btm.iter(),
+        }
+    }
+
+    /// Clears the map, removing all elements.
+    pub fn clear(&mut self) {
+        self.btm.clear();
+    }
+
+    /// Returns the number of elements in the map.
+    pub fn len(&self) -> usize {
+        self.btm.len()
+    }
+
+    /// Returns true if the map contains no elements.
+    pub fn is_empty(&self) -> bool {
+        self.btm.is_empty()
+    }
+}
+
+impl<K, V> RangeMap<K, V>
+where
+    K: Ord + Clone,
+{
     /// Returns a reference to the value corresponding to the given key,
     /// if the key is covered by any range in the map.
     pub fn get(&self, key: &K) -> Option<&V> {
@@ -126,31 +148,56 @@ where
         self.get(key).is_some()
     }
 
-    /// Gets an iterator over all pairs of key range and value,
-    /// ordered by key range.
+    /// Gets an iterator over all the maximally-sized ranges
+    /// contained in `outer_range` that are not covered by
+    /// any range stored in the map.
     ///
-    /// The iterator element type is `(&'a Range<K>, &'a V)`.
-    pub fn iter(&self) -> Iter<'_, K, V> {
-        Iter {
-            inner: self.btm.iter(),
+    /// If the start and end of the outer range are the same
+    /// and it does not overlap any stored range, then a single
+    /// empty gap will be returned.
+    ///
+    /// The iterator element type is `Range<K>`.
+    pub fn gaps<'a>(&'a self, outer_range: &'a Range<K>) -> Gaps<'a, K, V> {
+        Gaps {
+            outer_range,
+            keys: self.btm.keys(),
+            // We'll start the candidate range at the start of the outer range
+            // without checking what's there. Each time we yield an item,
+            // we'll skip any ranges we find before the next gap.
+            candidate_start: &outer_range.start,
         }
     }
 
-    /// Clears the map, removing all elements.
-    pub fn clear(&mut self) {
-        self.btm.clear();
+    /// Gets an iterator over all the stored ranges that are
+    /// either partially or completely overlapped by the given range.
+    pub fn overlapping<'a>(&'a self, range: &'a Range<K>) -> Overlapping<K, V> {
+        // Find the first matching stored range by its _end_,
+        // using sneaky layering and `Borrow` implementation. (See `range_wrappers` module.)
+        let start_sliver = RangeEndWrapper::new(range.start.clone()..range.start.clone());
+        let btm_range_iter = self
+            .btm
+            .range::<RangeEndWrapper<K>, (Bound<&RangeEndWrapper<K>>, Bound<_>)>((
+                Bound::Excluded(&start_sliver),
+                Bound::Unbounded,
+            ));
+        Overlapping {
+            query_range: range,
+            btm_range_iter,
+        }
     }
 
-    /// Returns the number of elements in the map.
-    pub fn len(&self) -> usize {
-        self.btm.len()
+    /// Returns `true` if any range in the map completely or partially
+    /// overlaps the given range.
+    pub fn overlaps(&self, range: &Range<K>) -> bool {
+        self.overlapping(range).next().is_some()
     }
+}
 
-    /// Returns true if the map contains no elements.
-    pub fn is_empty(&self) -> bool {
-        self.btm.is_empty()
-    }
-
+impl<K, V> RangeMap<K, V>
+where
+    K: Ord + Clone,
+    V: Eq + Clone,
+{
     /// Insert a pair of key range and value into the map.
     ///
     /// If the inserted range partially or completely overlaps any
@@ -418,50 +465,6 @@ where
             );
         }
     }
-
-    /// Gets an iterator over all the maximally-sized ranges
-    /// contained in `outer_range` that are not covered by
-    /// any range stored in the map.
-    ///
-    /// If the start and end of the outer range are the same
-    /// and it does not overlap any stored range, then a single
-    /// empty gap will be returned.
-    ///
-    /// The iterator element type is `Range<K>`.
-    pub fn gaps<'a>(&'a self, outer_range: &'a Range<K>) -> Gaps<'a, K, V> {
-        Gaps {
-            outer_range,
-            keys: self.btm.keys(),
-            // We'll start the candidate range at the start of the outer range
-            // without checking what's there. Each time we yield an item,
-            // we'll skip any ranges we find before the next gap.
-            candidate_start: &outer_range.start,
-        }
-    }
-
-    /// Gets an iterator over all the stored ranges that are
-    /// either partially or completely overlapped by the given range.
-    pub fn overlapping<'a>(&'a self, range: &'a Range<K>) -> Overlapping<K, V> {
-        // Find the first matching stored range by its _end_,
-        // using sneaky layering and `Borrow` implementation. (See `range_wrappers` module.)
-        let start_sliver = RangeEndWrapper::new(range.start.clone()..range.start.clone());
-        let btm_range_iter = self
-            .btm
-            .range::<RangeEndWrapper<K>, (Bound<&RangeEndWrapper<K>>, Bound<_>)>((
-                Bound::Excluded(&start_sliver),
-                Bound::Unbounded,
-            ));
-        Overlapping {
-            query_range: range,
-            btm_range_iter,
-        }
-    }
-
-    /// Returns `true` if any range in the map completely or partially
-    /// overlaps the given range.
-    pub fn overlaps(&self, range: &Range<K>) -> bool {
-        self.overlapping(range).next().is_some()
-    }
 }
 
 /// An iterator over the entries of a `RangeMap`, ordered by key range.
@@ -531,11 +534,7 @@ impl<K, V> Iterator for IntoIter<K, V> {
 // We can't just derive this automatically, because that would
 // expose irrelevant (and private) implementation details.
 // Instead implement it in the same way that the underlying BTreeMap does.
-impl<K: Debug, V: Debug> Debug for RangeMap<K, V>
-where
-    K: Ord + Clone,
-    V: Eq + Clone,
-{
+impl<K: Debug, V: Debug> Debug for RangeMap<K, V> {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_map().entries(self.iter()).finish()
     }
@@ -568,8 +567,8 @@ where
 #[cfg(feature = "serde1")]
 impl<K, V> Serialize for RangeMap<K, V>
 where
-    K: Ord + Clone + Serialize,
-    V: Eq + Clone + Serialize,
+    K: Serialize,
+    V: Serialize,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -706,11 +705,11 @@ pub struct Overlapping<'a, K, V> {
 }
 
 // `Overlapping` is always fused. (See definition of `next` below.)
-impl<'a, K, V> core::iter::FusedIterator for Overlapping<'a, K, V> where K: Ord + Clone {}
+impl<'a, K, V> core::iter::FusedIterator for Overlapping<'a, K, V> where K: Ord {}
 
 impl<'a, K, V> Iterator for Overlapping<'a, K, V>
 where
-    K: Ord + Clone,
+    K: Ord,
 {
     type Item = (&'a Range<K>, &'a V);
 
