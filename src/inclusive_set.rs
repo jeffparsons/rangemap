@@ -20,7 +20,7 @@ use crate::RangeInclusiveMap;
 ///
 /// See [`RangeInclusiveMap`]'s documentation for more details.
 ///
-/// [`RangeInclusiveMap`]: struct.RangeInclusiveMap.html
+/// [`RangeInclusiveMap`]: crate::RangeInclusiveMap
 pub struct RangeInclusiveSet<T, StepFnsT = T> {
     rm: RangeInclusiveMap<T, (), StepFnsT>,
 }

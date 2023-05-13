@@ -20,7 +20,7 @@ use crate::RangeMap;
 ///
 /// See [`RangeMap`]'s documentation for more details.
 ///
-/// [`RangeMap`]: struct.RangeMap.html
+/// [`RangeMap`]: crate::RangeMap
 pub struct RangeSet<T> {
     rm: RangeMap<T, ()>,
 }
