@@ -182,6 +182,7 @@ where
 /// documentation for more.
 ///
 /// [`iter`]: RangeSet::iter
+#[derive(Clone, Debug)]
 pub struct Iter<'a, T> {
     inner: super::map::Iter<'a, T, ()>,
 }
@@ -204,6 +205,7 @@ impl<'a, T> Iterator for Iter<'a, T> {
 /// (provided by the `IntoIterator` trait). See its documentation for more.
 ///
 /// [`into_iter`]: IntoIterator::into_iter
+#[derive(Debug)]
 pub struct IntoIter<T> {
     inner: super::map::IntoIter<T, ()>,
 }
@@ -361,6 +363,7 @@ where
 /// documentation for more.
 ///
 /// [`overlapping`]: RangeSet::overlapping
+#[derive(Clone, Debug)]
 pub struct Overlapping<'a, T> {
     inner: crate::map::Overlapping<'a, T, ()>,
 }

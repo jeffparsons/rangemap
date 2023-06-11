@@ -475,6 +475,7 @@ where
 /// documentation for more.
 ///
 /// [`iter`]: RangeMap::iter
+#[derive(Clone, Debug)]
 pub struct Iter<'a, K, V> {
     inner: alloc::collections::btree_map::Iter<'a, RangeStartWrapper<K>, V>,
 }
@@ -505,6 +506,7 @@ where
 /// (provided by the `IntoIterator` trait). See its documentation for more.
 ///
 /// [`into_iter`]: IntoIterator::into_iter
+#[derive(Debug)]
 pub struct IntoIter<K, V> {
     inner: alloc::collections::btree_map::IntoIter<RangeStartWrapper<K>, V>,
 }
@@ -699,6 +701,7 @@ where
 /// documentation for more.
 ///
 /// [`overlapping`]: RangeMap::overlapping
+#[derive(Clone, Debug)]
 pub struct Overlapping<'a, K, V> {
     query_range: &'a Range<K>,
     btm_range_iter: alloc::collections::btree_map::Range<'a, RangeStartWrapper<K>, V>,

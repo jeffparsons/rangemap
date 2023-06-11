@@ -208,6 +208,7 @@ where
 /// documentation for more.
 ///
 /// [`iter`]: RangeInclusiveSet::iter
+#[derive(Clone, Debug)]
 pub struct Iter<'a, T> {
     inner: super::inclusive_map::Iter<'a, T, ()>,
 }
@@ -230,6 +231,7 @@ impl<'a, T> Iterator for Iter<'a, T> {
 /// (provided by the `IntoIterator` trait). See its documentation for more.
 ///
 /// [`into_iter`]: IntoIterator::into_iter
+#[derive(Debug)]
 pub struct IntoIter<T> {
     inner: super::inclusive_map::IntoIter<T, ()>,
 }
@@ -393,6 +395,7 @@ where
 /// documentation for more.
 ///
 /// [`overlapping`]: RangeInclusiveSet::overlapping
+#[derive(Clone, Debug)]
 pub struct Overlapping<'a, T> {
     inner: crate::inclusive_map::Overlapping<'a, T, ()>,
 }
