@@ -527,7 +527,7 @@ where
 
     /// Gets an iterator over all the stored ranges that are
     /// either partially or completely overlapped by the given range.
-    pub fn overlapping<'a>(&'a self, range: &'a RangeInclusive<K>) -> Overlapping<K, V> {
+    pub fn overlapping<'a>(&'a self, range: RangeInclusive<K>) -> Overlapping<K, V> {
         // Find the first matching stored range by its _end_,
         // using sneaky layering and `Borrow` implementation. (See `range_wrappers` module.)
         let start_sliver =
@@ -545,7 +545,7 @@ where
 
     /// Returns `true` if any range in the map completely or partially
     /// overlaps the given range.
-    pub fn overlaps(&self, range: &RangeInclusive<K>) -> bool {
+    pub fn overlaps(&self, range: RangeInclusive<K>) -> bool {
         self.overlapping(range).next().is_some()
     }
 }
@@ -812,7 +812,7 @@ where
 ///
 /// [`overlapping`]: RangeInclusiveMap::overlapping
 pub struct Overlapping<'a, K, V> {
-    query_range: &'a RangeInclusive<K>,
+    query_range: RangeInclusive<K>,
     btm_range_iter: alloc::collections::btree_map::Range<'a, RangeInclusiveStartWrapper<K>, V>,
 }
 
