@@ -1486,7 +1486,15 @@ mod tests {
         let mut b: RangeMap<u32, bool> = RangeMap::new();
         b.insert(1..4, false);
 
+        let mut c: RangeMap<u32, bool> = RangeMap::new();
+        c.insert(1..3, false);
+
         assert_ne!(a, b);
+        assert_ne!(b, a);
+
+        assert_eq!(a, c);
+        assert_eq!(c, a);
+        assert_eq!(a, a);
     }
 
     // Ord
@@ -1497,6 +1505,8 @@ mod tests {
 
         let mut b: RangeMap<u32, bool> = RangeMap::new();
         b.insert(1..4, false);
+
+        assert_eq!(a.partial_cmp(&a), Some(Ordering::Equal));
 
         assert_eq!(a.partial_cmp(&b), Some(Ordering::Less));
         assert_eq!(b.partial_cmp(&a), Some(Ordering::Greater));
@@ -1509,6 +1519,8 @@ mod tests {
 
         let mut b: RangeMap<u32, bool> = RangeMap::new();
         b.insert(1..4, false);
+
+        assert_eq!(a.cmp(&a), Ordering::Equal);
 
         assert_eq!(a.cmp(&b), Ordering::Less);
         assert_eq!(b.cmp(&a), Ordering::Greater);
