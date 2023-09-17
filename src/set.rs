@@ -1,3 +1,4 @@
+use core::cmp::Ordering;
 use core::fmt::{self, Debug};
 use core::iter::FromIterator;
 use core::ops::Range;
@@ -43,6 +44,26 @@ where
 }
 
 impl<T> Eq for RangeSet<T> where T: Eq {}
+
+impl<T> PartialOrd for RangeSet<T>
+where
+    T: PartialOrd,
+{
+    #[inline]
+    fn partial_cmp(&self, other: &RangeSet<T>) -> Option<Ordering> {
+        self.rm.partial_cmp(&other.rm)
+    }
+}
+
+impl<T> Ord for RangeSet<T>
+where
+    T: Ord,
+{
+    #[inline]
+    fn cmp(&self, other: &RangeSet<T>) -> Ordering {
+        self.rm.cmp(&other.rm)
+    }
+}
 
 impl<T> RangeSet<T>
 where
