@@ -1,3 +1,11 @@
+### v1.3.1 (2023-09-19)
+
+- **Fixes**:
+    - Fix `PartialEq`, `PartialOrd`, and `Ord` implementations for `RangeMap` (and `RangeSet`). These previously only compared the starts of ranges instead of the entire range. Thanks to https://github.com/hecrj for finding and fixing this!
+- **Changes**:
+    - Minimum supported Rust version for running this crate's tests has increased (I think to 1.59) due to a corresponding MSRV bump in a test dependency. This is causing CI builds to fail against rustc 1.56.1, but should not affect consumers of the crate. The next minor release (1.4.0) will bump the minimum supported Rust version of rangemap itself.
+
+
 ### v1.3.0 (2023-01-03)
 
 - **Features**:
