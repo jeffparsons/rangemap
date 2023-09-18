@@ -40,7 +40,7 @@ where
     V: PartialEq,
 {
     fn eq(&self, other: &RangeMap<K, V>) -> bool {
-        self.btm == other.btm
+        self.expanded_iter().eq(other.expanded_iter())
     }
 }
 
@@ -51,7 +51,7 @@ where
 {
     #[inline]
     fn partial_cmp(&self, other: &RangeMap<K, V>) -> Option<Ordering> {
-        self.btm.partial_cmp(&other.btm)
+        self.expanded_iter().partial_cmp(other.expanded_iter())
     }
 }
 
@@ -62,7 +62,7 @@ where
 {
     #[inline]
     fn cmp(&self, other: &RangeMap<K, V>) -> Ordering {
-        self.btm.cmp(&other.btm)
+        self.expanded_iter().cmp(other.expanded_iter())
     }
 }
 
@@ -113,6 +113,13 @@ impl<K, V> RangeMap<K, V> {
     /// Returns true if the map contains no elements.
     pub fn is_empty(&self) -> bool {
         self.btm.is_empty()
+    }
+
+    /// Returns an iterator that includes both ends of the key range.
+    ///
+    /// Mainly used for comparisons.
+    fn expanded_iter(&self) -> impl Iterator<Item = (&K, &K, &V)> {
+        self.btm.iter().map(|(k, v)| (&k.start, &k.end, v))
     }
 }
 
@@ -1468,6 +1475,55 @@ mod tests {
 
         // Equality
         assert_eq!(cloned, consumed);
+    }
+
+    // Equality
+    #[test]
+    fn eq() {
+        let mut a: RangeMap<u32, bool> = RangeMap::new();
+        a.insert(1..3, false);
+
+        let mut b: RangeMap<u32, bool> = RangeMap::new();
+        b.insert(1..4, false);
+
+        let mut c: RangeMap<u32, bool> = RangeMap::new();
+        c.insert(1..3, false);
+
+        assert_ne!(a, b);
+        assert_ne!(b, a);
+
+        assert_eq!(a, c);
+        assert_eq!(c, a);
+        assert_eq!(a, a);
+    }
+
+    // Ord
+    #[test]
+    fn partial_ord() {
+        let mut a: RangeMap<u32, bool> = RangeMap::new();
+        a.insert(1..3, false);
+
+        let mut b: RangeMap<u32, bool> = RangeMap::new();
+        b.insert(1..4, false);
+
+        assert_eq!(a.partial_cmp(&a), Some(Ordering::Equal));
+
+        assert_eq!(a.partial_cmp(&b), Some(Ordering::Less));
+        assert_eq!(b.partial_cmp(&a), Some(Ordering::Greater));
+    }
+
+    #[test]
+    fn ord() {
+        let mut a: RangeMap<u32, bool> = RangeMap::new();
+        a.insert(1..3, false);
+
+        let mut b: RangeMap<u32, bool> = RangeMap::new();
+        b.insert(1..4, false);
+
+        assert_eq!(a.cmp(&a), Ordering::Equal);
+
+        assert_eq!(a.cmp(&b), Ordering::Less);
+        assert_eq!(b.cmp(&a), Ordering::Greater);
     }
 
     // impl Serialize
