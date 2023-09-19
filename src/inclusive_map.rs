@@ -558,6 +558,7 @@ where
 /// documentation for more.
 ///
 /// [`iter`]: RangeInclusiveMap::iter
+#[derive(Clone, Debug)]
 pub struct Iter<'a, K, V> {
     inner: alloc::collections::btree_map::Iter<'a, RangeInclusiveStartWrapper<K>, V>,
 }
@@ -586,6 +587,7 @@ where
 /// (provided by the `IntoIterator` trait). See its documentation for more.
 ///
 /// [`into_iter`]: IntoIterator::into_iter
+#[derive(Debug)]
 pub struct IntoIter<K, V> {
     inner: alloc::collections::btree_map::IntoIter<RangeInclusiveStartWrapper<K>, V>,
 }
@@ -811,6 +813,7 @@ where
 /// documentation for more.
 ///
 /// [`overlapping`]: RangeInclusiveMap::overlapping
+#[derive(Clone, Debug)]
 pub struct Overlapping<'a, K, V> {
     query_range: &'a RangeInclusive<K>,
     btm_range_iter: alloc::collections::btree_map::Range<'a, RangeInclusiveStartWrapper<K>, V>,
