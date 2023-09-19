@@ -189,7 +189,7 @@ where
     /// either partially or completely overlapped by the given range.
     ///
     /// The iterator element type is `RangeInclusive<T>`.
-    pub fn overlapping<'a>(&'a self, range: &'a RangeInclusive<T>) -> Overlapping<T> {
+    pub fn overlapping<'a>(&'a self, range: RangeInclusive<T>) -> Overlapping<T> {
         Overlapping {
             inner: self.rm.overlapping(range),
         }
@@ -197,7 +197,7 @@ where
 
     /// Returns `true` if any range in the set completely or partially
     /// overlaps the given range.
-    pub fn overlaps(&self, range: &RangeInclusive<T>) -> bool {
+    pub fn overlaps(&self, range: RangeInclusive<T>) -> bool {
         self.overlapping(range).next().is_some()
     }
 }
