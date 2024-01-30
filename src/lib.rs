@@ -134,6 +134,7 @@ extern crate alloc;
 pub mod inclusive_map;
 pub mod inclusive_set;
 pub mod map;
+pub mod operations;
 pub mod set;
 
 #[cfg(test)]
