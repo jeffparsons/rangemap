@@ -1,3 +1,4 @@
+use core::borrow::Borrow;
 use core::cmp::Ordering;
 use core::fmt::{self, Debug};
 use core::iter::FromIterator;
@@ -163,7 +164,7 @@ where
     /// either partially or completely overlapped by the given range.
     ///
     /// The iterator element type is `&Range<T>`.
-    pub fn overlapping<'a>(&'a self, range: &'a Range<T>) -> Overlapping<T> {
+    pub fn overlapping<R: Borrow<Range<T>>>(&self, range: R) -> Overlapping<T, R> {
         Overlapping {
             inner: self.rm.overlapping(range),
         }
@@ -361,14 +362,17 @@ where
 /// documentation for more.
 ///
 /// [`overlapping`]: RangeSet::overlapping
-pub struct Overlapping<'a, T> {
-    inner: crate::map::Overlapping<'a, T, ()>,
+pub struct Overlapping<'a, T, R: Borrow<Range<T>> = &'a Range<T>> {
+    inner: crate::map::Overlapping<'a, T, (), R>,
 }
 
 // `Overlapping` is always fused. (See definition of `next` below.)
-impl<'a, T> core::iter::FusedIterator for Overlapping<'a, T> where T: Ord + Clone {}
+impl<'a, T, R: Borrow<Range<T>>> core::iter::FusedIterator for Overlapping<'a, T, R> where
+    T: Ord + Clone
+{
+}
 
-impl<'a, T> Iterator for Overlapping<'a, T>
+impl<'a, T, R: Borrow<Range<T>>> Iterator for Overlapping<'a, T, R>
 where
     T: Ord + Clone,
 {
