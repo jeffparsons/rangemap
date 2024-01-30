@@ -387,6 +387,17 @@ where
 mod tests {
     use super::*;
     use alloc::{format, vec, vec::Vec};
+    use test_strategy::proptest;
+    use alloc as std;
+
+    #[proptest]
+    fn test_arbitrary_set(ranges: Vec<Range<u16>>) {
+        let ranges: Vec<_> = ranges.into_iter().filter(|range| range.start != range.end).collect();
+        let mut set = ranges.iter().fold(RangeSet::new(), |mut set, range| {
+            set.insert(range.clone());
+            set
+        });
+    }
 
     trait RangeSetExt<T> {
         fn to_vec(&self) -> Vec<Range<T>>;
