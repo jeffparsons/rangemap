@@ -2,6 +2,7 @@ use super::range_wrapper::RangeStartWrapper;
 use crate::range_wrapper::RangeEndWrapper;
 use crate::std_ext::*;
 use alloc::collections::BTreeMap;
+use core::borrow::Borrow;
 use core::cmp::Ordering;
 use core::fmt::{self, Debug};
 use core::iter::FromIterator;
@@ -177,10 +178,11 @@ where
 
     /// Gets an iterator over all the stored ranges that are
     /// either partially or completely overlapped by the given range.
-    pub fn overlapping<'a>(&'a self, range: &'a Range<K>) -> Overlapping<K, V> {
+    pub fn overlapping<R: Borrow<Range<K>>>(&self, range: R) -> Overlapping<K, V, R> {
         // Find the first matching stored range by its _end_,
         // using sneaky layering and `Borrow` implementation. (See `range_wrappers` module.)
-        let start_sliver = RangeEndWrapper::new(range.start.clone()..range.start.clone());
+        let start_sliver =
+            RangeEndWrapper::new(range.borrow().start.clone()..range.borrow().start.clone());
         let btm_range_iter = self
             .btm
             .range::<RangeEndWrapper<K>, (Bound<&RangeEndWrapper<K>>, Bound<_>)>((
@@ -706,15 +708,18 @@ where
 /// documentation for more.
 ///
 /// [`overlapping`]: RangeMap::overlapping
-pub struct Overlapping<'a, K, V> {
-    query_range: &'a Range<K>,
+pub struct Overlapping<'a, K, V, R: Borrow<Range<K>> = &'a Range<K>> {
+    query_range: R,
     btm_range_iter: alloc::collections::btree_map::Range<'a, RangeStartWrapper<K>, V>,
 }
 
 // `Overlapping` is always fused. (See definition of `next` below.)
-impl<'a, K, V> core::iter::FusedIterator for Overlapping<'a, K, V> where K: Ord {}
+impl<'a, K, V, R: Borrow<Range<K>>> core::iter::FusedIterator for Overlapping<'a, K, V, R> where
+    K: Ord
+{
+}
 
-impl<'a, K, V> Iterator for Overlapping<'a, K, V>
+impl<'a, K, V, R: Borrow<Range<K>>> Iterator for Overlapping<'a, K, V, R>
 where
     K: Ord,
 {
@@ -722,7 +727,7 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         if let Some((k, v)) = self.btm_range_iter.next() {
-            if k.start < self.query_range.end {
+            if k.start < self.query_range.borrow().end {
                 Some((&k.range, v))
             } else {
                 // The rest of the items in the underlying iterator

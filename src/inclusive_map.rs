@@ -2,6 +2,7 @@ use super::range_wrapper::RangeInclusiveStartWrapper;
 use crate::range_wrapper::RangeInclusiveEndWrapper;
 use crate::std_ext::*;
 use alloc::collections::BTreeMap;
+use core::borrow::Borrow;
 use core::cmp::Ordering;
 use core::fmt::{self, Debug};
 use core::iter::FromIterator;
@@ -527,11 +528,12 @@ where
 
     /// Gets an iterator over all the stored ranges that are
     /// either partially or completely overlapped by the given range.
-    pub fn overlapping<'a>(&'a self, range: &'a RangeInclusive<K>) -> Overlapping<K, V> {
+    pub fn overlapping<R: Borrow<RangeInclusive<K>>>(&self, range: R) -> Overlapping<K, V, R> {
         // Find the first matching stored range by its _end_,
         // using sneaky layering and `Borrow` implementation. (See `range_wrappers` module.)
-        let start_sliver =
-            RangeInclusiveEndWrapper::new(range.start().clone()..=range.start().clone());
+        let start_sliver = RangeInclusiveEndWrapper::new(
+            range.borrow().start().clone()..=range.borrow().start().clone(),
+        );
         let btm_range_iter = self
             .btm
             .range::<RangeInclusiveEndWrapper<K>, RangeFrom<&RangeInclusiveEndWrapper<K>>>(
@@ -811,15 +813,18 @@ where
 /// documentation for more.
 ///
 /// [`overlapping`]: RangeInclusiveMap::overlapping
-pub struct Overlapping<'a, K, V> {
-    query_range: &'a RangeInclusive<K>,
+pub struct Overlapping<'a, K, V, R: Borrow<RangeInclusive<K>> = &'a RangeInclusive<K>> {
+    query_range: R,
     btm_range_iter: alloc::collections::btree_map::Range<'a, RangeInclusiveStartWrapper<K>, V>,
 }
 
 // `Overlapping` is always fused. (See definition of `next` below.)
-impl<'a, K, V> core::iter::FusedIterator for Overlapping<'a, K, V> where K: Ord + Clone {}
+impl<'a, K, V, R: Borrow<RangeInclusive<K>>> core::iter::FusedIterator for Overlapping<'a, K, V, R> where
+    K: Ord + Clone
+{
+}
 
-impl<'a, K, V> Iterator for Overlapping<'a, K, V>
+impl<'a, K, V, R: Borrow<RangeInclusive<K>>> Iterator for Overlapping<'a, K, V, R>
 where
     K: Ord + Clone,
 {
@@ -827,7 +832,7 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         if let Some((k, v)) = self.btm_range_iter.next() {
-            if k.start() <= self.query_range.end() {
+            if k.start() <= self.query_range.borrow().end() {
                 Some((&k.range, v))
             } else {
                 // The rest of the items in the underlying iterator
@@ -1503,7 +1508,7 @@ mod tests {
     // Overlapping tests
 
     #[test]
-    fn overlapping_with_empty_map() {
+    fn overlapping_ref_with_empty_map() {
         // 0 1 2 3 4 5 6 7 8 9
         // ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌
         let range_map: RangeInclusiveMap<u32, ()> = RangeInclusiveMap::new();
@@ -1511,6 +1516,21 @@ mod tests {
         // ◌ ◆-------------◆ ◌
         let query_range = 1..=8;
         let mut overlapping = range_map.overlapping(&query_range);
+        // Should not yield any items.
+        assert_eq!(overlapping.next(), None);
+        // Gaps iterator should be fused.
+        assert_eq!(overlapping.next(), None);
+    }
+
+    #[test]
+    fn overlapping_owned_with_empty_map() {
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌ ◌
+        let range_map: RangeInclusiveMap<u32, ()> = RangeInclusiveMap::new();
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◆-------------◆ ◌
+        let query_range = 1..=8;
+        let mut overlapping = range_map.overlapping(query_range);
         // Should not yield any items.
         assert_eq!(overlapping.next(), None);
         // Gaps iterator should be fused.
