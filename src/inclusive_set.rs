@@ -418,7 +418,30 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
+    use alloc as std;
     use alloc::{format, vec, vec::Vec};
+    use test_strategy::proptest;
+
+    #[proptest]
+    fn test_arbitrary_set_u8(ranges: Vec<RangeInclusive<u8>>) {
+        let ranges: Vec<_> = ranges
+            .into_iter()
+            .filter(|range| range.start() != range.end())
+            .collect();
+        let set = ranges
+            .iter()
+            .fold(RangeInclusiveSet::new(), |mut set, range| {
+                set.insert(range.clone());
+                set
+            });
+
+        for value in 0..u8::MAX {
+            assert_eq!(
+                set.contains(&value),
+                ranges.iter().any(|range| range.contains(&value))
+            );
+        }
+    }
 
     trait RangeInclusiveSetExt<T> {
         fn to_vec(&self) -> Vec<RangeInclusive<T>>;

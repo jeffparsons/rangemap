@@ -850,7 +850,34 @@ where
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alloc::{format, vec, vec::Vec};
+    use alloc::{format, vec, vec::Vec, string::String};
+    use test_strategy::proptest;
+    use alloc as std;
+
+    #[proptest]
+    fn test_arbitrary_map_u8(ranges: Vec<(RangeInclusive<u8>, String)>) {
+        let ranges: Vec<_> = ranges
+            .into_iter()
+            .filter(|(range, _value)| range.start() != range.end())
+            .collect();
+        let set = ranges
+            .iter()
+            .fold(RangeInclusiveMap::new(), |mut set, (range, value)| {
+                set.insert(range.clone(), value.clone());
+                set
+            });
+
+        for value in 0..u8::MAX {
+            assert_eq!(
+                set.get(&value),
+                ranges
+                    .iter()
+                    .rev()
+                    .find(|(range, _value)| range.contains(&value))
+                    .map(|(_range, value)| value)
+            );
+        }
+    }
 
     trait RangeInclusiveMapExt<K, V> {
         fn to_vec(&self) -> Vec<(RangeInclusive<K>, V)>;
