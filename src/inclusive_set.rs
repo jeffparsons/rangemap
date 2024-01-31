@@ -15,7 +15,7 @@ use serde::{
 use crate::std_ext::*;
 use crate::RangeInclusiveMap;
 
-#[derive(Clone)]
+#[derive(Clone, Hash, Default)]
 /// A set whose items are stored as ranges bounded
 /// inclusively below and above `(start..=end)`.
 ///
@@ -26,42 +26,33 @@ pub struct RangeInclusiveSet<T, StepFnsT = T> {
     rm: RangeInclusiveMap<T, (), StepFnsT>,
 }
 
-impl<T> Default for RangeInclusiveSet<T, T>
-where
-    T: Ord + Clone + StepLite,
-{
-    fn default() -> Self {
-        Self::new()
-    }
-}
-
-impl<T> PartialEq for RangeInclusiveSet<T, T>
+impl<T, StepFnsT> PartialEq for RangeInclusiveSet<T, StepFnsT>
 where
     T: PartialEq,
 {
-    fn eq(&self, other: &RangeInclusiveSet<T, T>) -> bool {
+    fn eq(&self, other: &Self) -> bool {
         self.rm == other.rm
     }
 }
 
-impl<T> Eq for RangeInclusiveSet<T, T> where T: Eq {}
+impl<T, StepFnsT> Eq for RangeInclusiveSet<T, StepFnsT> where T: Eq {}
 
-impl<T> PartialOrd for RangeInclusiveSet<T, T>
+impl<T, StepFnsT> PartialOrd for RangeInclusiveSet<T, StepFnsT>
 where
     T: PartialOrd,
 {
     #[inline]
-    fn partial_cmp(&self, other: &RangeInclusiveSet<T, T>) -> Option<Ordering> {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         self.rm.partial_cmp(&other.rm)
     }
 }
 
-impl<T> Ord for RangeInclusiveSet<T, T>
+impl<T, StepFnsT> Ord for RangeInclusiveSet<T, StepFnsT>
 where
     T: Ord,
 {
     #[inline]
-    fn cmp(&self, other: &RangeInclusiveSet<T, T>) -> Ordering {
+    fn cmp(&self, other: &Self) -> Ordering {
         self.rm.cmp(&other.rm)
     }
 }

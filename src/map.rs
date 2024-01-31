@@ -22,17 +22,11 @@ use serde::{
 ///
 /// Contiguous and overlapping ranges that map to the same value
 /// are coalesced into a single range.
-#[derive(Clone)]
+#[derive(Clone, Hash, Default, Eq)]
 pub struct RangeMap<K, V> {
     // Wrap ranges so that they are `Ord`.
     // See `range_wrapper.rs` for explanation.
     pub(crate) btm: BTreeMap<RangeStartWrapper<K>, V>,
-}
-
-impl<K, V> Default for RangeMap<K, V> {
-    fn default() -> Self {
-        Self::new()
-    }
 }
 
 impl<K, V> PartialEq for RangeMap<K, V>
@@ -65,13 +59,6 @@ where
     fn cmp(&self, other: &RangeMap<K, V>) -> Ordering {
         self.expanded_iter().cmp(other.expanded_iter())
     }
-}
-
-impl<K, V> Eq for RangeMap<K, V>
-where
-    K: Eq,
-    V: Eq,
-{
 }
 
 impl<K, V> RangeMap<K, V> {

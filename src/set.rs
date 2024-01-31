@@ -1,5 +1,4 @@
 use core::borrow::Borrow;
-use core::cmp::Ordering;
 use core::fmt::{self, Debug};
 use core::iter::FromIterator;
 use core::ops::Range;
@@ -15,7 +14,7 @@ use serde::{
 
 use crate::RangeMap;
 
-#[derive(Clone)]
+#[derive(Clone, Hash, Default, Eq, PartialEq, PartialOrd, Ord)]
 /// A set whose items are stored as (half-open) ranges bounded
 /// inclusively below and exclusively above `(start..end)`.
 ///
@@ -24,46 +23,6 @@ use crate::RangeMap;
 /// [`RangeMap`]: struct.RangeMap.html
 pub struct RangeSet<T> {
     rm: RangeMap<T, ()>,
-}
-
-impl<T> Default for RangeSet<T>
-where
-    T: Ord + Clone,
-{
-    fn default() -> Self {
-        RangeSet::new()
-    }
-}
-
-impl<T> PartialEq for RangeSet<T>
-where
-    T: PartialEq,
-{
-    fn eq(&self, other: &RangeSet<T>) -> bool {
-        self.rm == other.rm
-    }
-}
-
-impl<T> Eq for RangeSet<T> where T: Eq {}
-
-impl<T> PartialOrd for RangeSet<T>
-where
-    T: PartialOrd,
-{
-    #[inline]
-    fn partial_cmp(&self, other: &RangeSet<T>) -> Option<Ordering> {
-        self.rm.partial_cmp(&other.rm)
-    }
-}
-
-impl<T> Ord for RangeSet<T>
-where
-    T: Ord,
-{
-    #[inline]
-    fn cmp(&self, other: &RangeSet<T>) -> Ordering {
-        self.rm.cmp(&other.rm)
-    }
 }
 
 impl<T> RangeSet<T>
