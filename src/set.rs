@@ -352,6 +352,21 @@ impl<T: Ord + Clone, const N: usize> From<[Range<T>; N]> for RangeSet<T> {
     }
 }
 
+/// Create a [`RangeSet`] from a list of ranges.
+///
+/// # Example
+///
+/// ```rust
+/// # use rangemap::range_set;
+/// let set = range_set![0..100, 200..300, 400..500];
+/// ```
+#[macro_export]
+macro_rules! range_set {
+    ($($range:expr),* $(,)?) => {{
+        <$crate::RangeSet<_> as core::iter::FromIterator<_>>::from_iter([$($range,)*])
+    }};
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -384,6 +399,14 @@ mod tests {
         set.insert(0..100);
         set.insert(200..300);
         assert_eq!(set, RangeSet::from([0..100, 200..300]));
+    }
+
+    #[test]
+    fn test_macro() {
+        assert_eq!(
+            range_set![0..100, 200..300, 400..500],
+            [0..100, 200..300, 400..500].iter().cloned().collect(),
+        );
     }
 
     trait RangeSetExt<T> {

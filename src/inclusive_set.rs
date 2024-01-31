@@ -418,6 +418,21 @@ impl<T: Ord + Clone + StepLite, const N: usize> From<[RangeInclusive<T>; N]>
     }
 }
 
+/// Create a [`RangeInclusiveSet`] from a list of ranges.
+///
+/// # Example
+///
+/// ```rust
+/// # use rangemap::range_inclusive_set;
+/// let set = range_inclusive_set![0..=100, 200..=300, 400..=500];
+/// ```
+#[macro_export]
+macro_rules! range_inclusive_set {
+    ($($range:expr),* $(,)?) => {{
+        <$crate::RangeInclusiveSet<_> as core::iter::FromIterator<_>>::from_iter([$($range,)*])
+    }};
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -452,6 +467,14 @@ mod tests {
         set.insert(0..=100);
         set.insert(200..=300);
         assert_eq!(set, RangeInclusiveSet::from([0..=100, 200..=300]));
+    }
+
+    #[test]
+    fn test_macro() {
+        assert_eq!(
+            range_inclusive_set![0..=100, 200..=300, 400..=500],
+            [0..=100, 200..=300, 400..=500].iter().cloned().collect(),
+        );
     }
 
     trait RangeInclusiveSetExt<T> {
