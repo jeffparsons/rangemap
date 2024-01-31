@@ -383,10 +383,28 @@ where
     }
 }
 
+impl<T: Ord + Clone, const N: usize> From<[Range<T>; N]> for RangeSet<T> {
+    fn from(value: [Range<T>; N]) -> Self {
+        let mut set = Self::new();
+        for value in IntoIterator::into_iter(value) {
+            set.insert(value);
+        }
+        set
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use alloc::{format, vec, vec::Vec};
+
+    #[test]
+    fn test_from_array() {
+        let mut set = RangeSet::new();
+        set.insert(0..100);
+        set.insert(200..300);
+        assert_eq!(set, RangeSet::from([0..100, 200..300]));
+    }
 
     trait RangeSetExt<T> {
         fn to_vec(&self) -> Vec<Range<T>>;

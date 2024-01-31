@@ -847,10 +847,33 @@ where
     }
 }
 
+impl<K: Ord + Clone + StepLite, V: Eq + Clone, const N: usize> From<[(RangeInclusive<K>, V); N]>
+    for RangeInclusiveMap<K, V>
+{
+    fn from(value: [(RangeInclusive<K>, V); N]) -> Self {
+        let mut map = Self::new();
+        for (range, value) in IntoIterator::into_iter(value) {
+            map.insert(range, value);
+        }
+        map
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use alloc::{format, vec, vec::Vec};
+
+    #[test]
+    fn test_from_array() {
+        let mut map = RangeInclusiveMap::new();
+        map.insert(0..=100, "hello");
+        map.insert(200..=300, "world");
+        assert_eq!(
+            map,
+            RangeInclusiveMap::from([(0..=100, "hello"), (200..=300, "world")])
+        );
+    }
 
     trait RangeInclusiveMapExt<K, V> {
         fn to_vec(&self) -> Vec<(RangeInclusive<K>, V)>;

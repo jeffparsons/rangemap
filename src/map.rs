@@ -742,10 +742,31 @@ where
     }
 }
 
+impl<K: Ord + Clone, V: Eq + Clone, const N: usize> From<[(Range<K>, V); N]> for RangeMap<K, V> {
+    fn from(value: [(Range<K>, V); N]) -> Self {
+        let mut map = Self::new();
+        for (range, value) in IntoIterator::into_iter(value) {
+            map.insert(range, value);
+        }
+        map
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
     use alloc::{format, vec, vec::Vec};
+
+    #[test]
+    fn test_from_array() {
+        let mut map = RangeMap::new();
+        map.insert(0..100, "hello");
+        map.insert(200..300, "world");
+        assert_eq!(
+            map,
+            RangeMap::from([(0..100, "hello"), (200..300, "world")])
+        );
+    }
 
     trait RangeMapExt<K, V> {
         fn to_vec(&self) -> Vec<(Range<K>, V)>;
