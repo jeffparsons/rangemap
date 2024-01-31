@@ -2,7 +2,7 @@ use crate::operations::{Intersection, Union};
 use core::borrow::Borrow;
 use core::fmt::{self, Debug};
 use core::iter::{DoubleEndedIterator, FromIterator};
-use core::ops::RangeInclusive;
+use core::ops::{RangeInclusive, BitOr, BitAnd};
 
 #[cfg(feature = "serde1")]
 use core::marker::PhantomData;
@@ -449,6 +449,22 @@ macro_rules! range_inclusive_set {
     ($($range:expr),* $(,)?) => {{
         <$crate::RangeInclusiveSet<_> as core::iter::FromIterator<_>>::from_iter([$($range,)*])
     }};
+}
+
+impl<T: Ord + Clone + StepLite> BitAnd for &RangeInclusiveSet<T> {
+    type Output = RangeInclusiveSet<T>;
+
+    fn bitand(self, other: Self) -> Self::Output {
+        self.intersection(other).collect()
+    }
+}
+
+impl<T: Ord + Clone + StepLite> BitOr for &RangeInclusiveSet<T> {
+    type Output = RangeInclusiveSet<T>;
+
+    fn bitor(self, other: Self) -> Self::Output {
+        self.union(other).collect()
+    }
 }
 
 #[cfg(test)]

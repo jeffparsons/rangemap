@@ -1,8 +1,8 @@
 use crate::operations::{Intersection, Union};
 use core::borrow::Borrow;
 use core::fmt::{self, Debug};
-use core::iter::{DoubleEndedIterator, FromIterator};
-use core::ops::Range;
+use core::iter::FromIterator;
+use core::ops::{BitAnd, BitOr, Range};
 use core::prelude::v1::*;
 
 #[cfg(feature = "serde1")]
@@ -386,6 +386,22 @@ where
 {
     fn next_back(&mut self) -> Option<Self::Item> {
         self.inner.next_back().map(|(k, _v)| k)
+    }
+}
+
+impl<T: Ord + Clone> BitAnd for &RangeSet<T> {
+    type Output = RangeSet<T>;
+
+    fn bitand(self, other: Self) -> Self::Output {
+        self.intersection(other).collect()
+    }
+}
+
+impl<T: Ord + Clone> BitOr for &RangeSet<T> {
+    type Output = RangeSet<T>;
+
+    fn bitor(self, other: Self) -> Self::Output {
+        self.union(other).collect()
     }
 }
 
