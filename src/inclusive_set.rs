@@ -406,6 +406,18 @@ where
     }
 }
 
+impl<T: Ord + Clone + StepLite, const N: usize> From<[RangeInclusive<T>; N]>
+    for RangeInclusiveSet<T>
+{
+    fn from(value: [RangeInclusive<T>; N]) -> Self {
+        let mut set = Self::new();
+        for value in IntoIterator::into_iter(value) {
+            set.insert(value);
+        }
+        set
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -432,6 +444,14 @@ mod tests {
                 ranges.iter().any(|range| range.contains(&value))
             );
         }
+    }
+
+    #[test]
+    fn test_from_array() {
+        let mut set = RangeInclusiveSet::new();
+        set.insert(0..=100);
+        set.insert(200..=300);
+        assert_eq!(set, RangeInclusiveSet::from([0..=100, 200..=300]));
     }
 
     trait RangeInclusiveSetExt<T> {
