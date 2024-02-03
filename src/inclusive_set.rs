@@ -459,7 +459,54 @@ mod tests {
     use super::*;
     use alloc as std;
     use alloc::{format, vec, vec::Vec};
+    use proptest::prelude::*;
     use test_strategy::proptest;
+
+    impl<T: Ord + Clone + StepLite + Debug + Arbitrary + 'static> Arbitrary for RangeInclusiveSet<T> {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(parameters: Self::Parameters) -> Self::Strategy {
+            any::<Vec<RangeInclusive<T>>>()
+                .prop_map(|ranges| ranges.into_iter().collect::<RangeInclusiveSet<T>>())
+                .boxed()
+        }
+    }
+
+    #[proptest]
+    fn test_first(set: RangeInclusiveSet<u64>) {
+        assert_eq!(set.first(), set.iter().min_by_key(|range| range.start()));
+    }
+
+    #[proptest]
+    fn test_last(set: RangeInclusiveSet<u64>) {
+        assert_eq!(set.last(), set.iter().max_by_key(|range| range.end()));
+    }
+
+    #[proptest]
+    fn test_iter_reversible(set: RangeInclusiveSet<u64>) {
+        let forward: Vec<_> = set.iter().collect();
+        let mut backward: Vec<_> = set.iter().rev().collect();
+        backward.reverse();
+        assert_eq!(forward, backward);
+    }
+
+    #[proptest]
+    fn test_into_iter_reversible(set: RangeInclusiveSet<u64>) {
+        let forward: Vec<_> = set.clone().into_iter().collect();
+        let mut backward: Vec<_> = set.into_iter().rev().collect();
+        backward.reverse();
+        assert_eq!(forward, backward);
+    }
+
+    #[proptest]
+    #[ignore = "broken"]
+    fn test_overlapping_reversible(set: RangeInclusiveSet<u64>, range: RangeInclusive<u64>) {
+        let forward: Vec<_> = set.overlapping(&range).collect();
+        let mut backward: Vec<_> = set.overlapping(&range).rev().collect();
+        backward.reverse();
+        assert_eq!(forward, backward);
+    }
 
     #[proptest]
     fn test_arbitrary_set_u8(ranges: Vec<RangeInclusive<u8>>) {
@@ -480,6 +527,10 @@ mod tests {
                 ranges.iter().any(|range| range.contains(&value))
             );
         }
+    }
+
+    fn collect<T: Ord + Clone + StepLite>(input: Vec<RangeInclusive<T>>) -> RangeInclusiveSet<T> {
+        input.into_iter().collect()
     }
 
     #[test]

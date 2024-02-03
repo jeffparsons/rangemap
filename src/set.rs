@@ -394,6 +394,53 @@ mod tests {
     use alloc as std;
     use alloc::{format, vec, vec::Vec};
     use test_strategy::proptest;
+    use proptest::prelude::*;
+
+    impl<T: Ord + Clone + Debug + Arbitrary + 'static> Arbitrary for RangeSet<T> {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(parameters: Self::Parameters) -> Self::Strategy {
+            any::<Vec<Range<T>>>()
+                .prop_map(|ranges| ranges.into_iter().collect::<RangeSet<T>>())
+                .boxed()
+        }
+    }
+
+    #[proptest]
+    fn test_first(set: RangeSet<u64>) {
+        assert_eq!(set.first(), set.iter().min_by_key(|range| range.start));
+    }
+
+    #[proptest]
+    fn test_last(set: RangeSet<u64>) {
+        assert_eq!(set.last(), set.iter().max_by_key(|range| range.end));
+    }
+
+    #[proptest]
+    fn test_iter_reversible(set: RangeSet<u64>) {
+        let forward: Vec<_> = set.iter().collect();
+        let mut backward: Vec<_> = set.iter().rev().collect();
+        backward.reverse();
+        assert_eq!(forward, backward);
+    }
+
+    #[proptest]
+    fn test_into_iter_reversible(set: RangeSet<u64>) {
+        let forward: Vec<_> = set.clone().into_iter().collect();
+        let mut backward: Vec<_> = set.into_iter().rev().collect();
+        backward.reverse();
+        assert_eq!(forward, backward);
+    }
+
+    #[proptest]
+    #[ignore = "broken"]
+    fn test_overlapping_reversible(set: RangeSet<u64>, range: Range<u64>) {
+        let forward: Vec<_> = set.overlapping(&range).collect();
+        let mut backward: Vec<_> = set.overlapping(&range).rev().collect();
+        backward.reverse();
+        assert_eq!(forward, backward);
+    }
 
     #[proptest]
     fn test_arbitrary_set_u8(ranges: Vec<Range<u8>>) {

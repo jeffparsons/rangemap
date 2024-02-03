@@ -909,9 +909,9 @@ impl<K: Ord + Clone + StepLite, V: Eq + Clone, const N: usize> From<[(RangeInclu
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alloc::{format, vec, vec::Vec, string::String};
-    use test_strategy::proptest;
     use alloc as std;
+    use alloc::{format, string::String, vec, vec::Vec};
+    use test_strategy::proptest;
 
     #[proptest]
     fn test_arbitrary_map_u8(ranges: Vec<(RangeInclusive<u8>, String)>) {
