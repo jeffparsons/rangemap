@@ -770,19 +770,13 @@ where
     K: Ord,
 {
     fn next_back(&mut self) -> Option<Self::Item> {
-        if let Some((k, v)) = self.btm_range_iter.next_back() {
+        while let Some((k, v)) = self.btm_range_iter.next_back() {
             if k.start < self.query_range.borrow().end {
-                Some((&k.range, v))
-            } else {
-                // The rest of the items in the underlying iterator
-                // are past the query range. We can keep taking items
-                // from that iterator and this will remain true,
-                // so this is enough to make the iterator fused.
-                None
+                return Some((&k.range, v));
             }
-        } else {
-            None
         }
+
+        None
     }
 }
 
@@ -847,6 +841,14 @@ mod tests {
     fn test_into_iter_reversible(set: RangeMap<u64, String>) {
         let forward: Vec<_> = set.clone().into_iter().collect();
         let mut backward: Vec<_> = set.into_iter().rev().collect();
+        backward.reverse();
+        assert_eq!(forward, backward);
+    }
+
+    #[proptest]
+    fn test_overlapping_reversible(set: RangeMap<u64, String>, range: Range<u64>) {
+        let forward: Vec<_> = set.overlapping(&range).collect();
+        let mut backward: Vec<_> = set.overlapping(&range).rev().collect();
         backward.reverse();
         assert_eq!(forward, backward);
     }

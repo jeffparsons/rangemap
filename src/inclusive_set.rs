@@ -503,7 +503,6 @@ mod tests {
     }
 
     #[proptest]
-    #[ignore = "broken"]
     fn test_overlapping_reversible(set: RangeInclusiveSet<u64>, range: RangeInclusive<u64>) {
         let forward: Vec<_> = set.overlapping(&range).collect();
         let mut backward: Vec<_> = set.overlapping(&range).rev().collect();
