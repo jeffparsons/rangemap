@@ -5,7 +5,7 @@ use alloc::collections::BTreeMap;
 use core::borrow::Borrow;
 use core::cmp::Ordering;
 use core::fmt::{self, Debug};
-use core::iter::FromIterator;
+use core::iter::{DoubleEndedIterator, FromIterator};
 use core::marker::PhantomData;
 use core::ops::{RangeFrom, RangeInclusive};
 use core::prelude::v1::*;
@@ -540,6 +540,18 @@ where
     pub fn overlaps(&self, range: &RangeInclusive<K>) -> bool {
         self.overlapping(range).next().is_some()
     }
+
+    /// Returns the first range-value pair in this map, if one exists. The range in this pair is the
+    /// minimum range in the map.
+    pub fn first_range_value(&self) -> Option<(&RangeInclusive<K>, &V)> {
+        self.btm.first_key_value().map(|(range, value)| (&range.end_wrapper.range, value))
+    }
+
+    /// Returns the last range-value pair in this map, if one exists. The range in this pair is the
+    /// maximum range in the map.
+    pub fn last_range_value(&self) -> Option<(&RangeInclusive<K>, &V)> {
+        self.btm.last_key_value().map(|(range, value)| (&range.end_wrapper.range, value))
+    }
 }
 
 /// An iterator over the entries of a `RangeInclusiveMap`, ordered by key range.
@@ -561,12 +573,24 @@ where
 {
     type Item = (&'a RangeInclusive<K>, &'a V);
 
-    fn next(&mut self) -> Option<(&'a RangeInclusive<K>, &'a V)> {
+    fn next(&mut self) -> Option<Self::Item> {
         self.inner.next().map(|(by_start, v)| (&by_start.range, v))
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.inner.size_hint()
+    }
+}
+
+impl<'a, K, V> DoubleEndedIterator for Iter<'a, K, V>
+where
+    K: 'a,
+    V: 'a,
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.inner
+            .next_back()
+            .map(|(range, value)| (&range.end_wrapper.range, value))
     }
 }
 

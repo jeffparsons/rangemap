@@ -1,6 +1,6 @@
 use core::borrow::Borrow;
 use core::fmt::{self, Debug};
-use core::iter::FromIterator;
+use core::iter::{DoubleEndedIterator, FromIterator};
 use core::ops::Range;
 use core::prelude::v1::*;
 
@@ -134,6 +134,18 @@ where
     pub fn overlaps(&self, range: &Range<T>) -> bool {
         self.overlapping(range).next().is_some()
     }
+
+    /// Returns the first range in the set, if one exists. The range is the minimum range in this
+    /// set.
+    pub fn first(&self) -> Option<&Range<T>> {
+        self.rm.first_range_value().map(|(range, _)| range)
+    }
+
+    /// Returns the last range in the set, if one exists. The range is the minimum range in this
+    /// set.
+    pub fn last(&self) -> Option<&Range<T>> {
+        self.rm.last_range_value().map(|(range, _)| range)
+    }
 }
 
 /// An iterator over the ranges of a `RangeSet`.
@@ -149,12 +161,23 @@ pub struct Iter<'a, T> {
 impl<'a, T> Iterator for Iter<'a, T> {
     type Item = &'a Range<T>;
 
-    fn next(&mut self) -> Option<&'a Range<T>> {
+    fn next(&mut self) -> Option<Self::Item> {
         self.inner.next().map(|(range, _)| range)
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.inner.size_hint()
+    }
+}
+
+impl<'a, K> DoubleEndedIterator for Iter<'a, K>
+where
+    K: 'a,
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.inner
+            .next_back()
+            .map(|(range, _)| range)
     }
 }
 

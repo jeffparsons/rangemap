@@ -1,7 +1,7 @@
 use core::borrow::Borrow;
 use core::cmp::Ordering;
 use core::fmt::{self, Debug};
-use core::iter::FromIterator;
+use core::iter::{DoubleEndedIterator, FromIterator};
 use core::ops::RangeInclusive;
 
 #[cfg(feature = "serde1")]
@@ -192,6 +192,18 @@ where
     pub fn overlaps(&self, range: &RangeInclusive<T>) -> bool {
         self.overlapping(range).next().is_some()
     }
+
+    /// Returns the first range in the set, if one exists. The range is the minimum range in this
+    /// set.
+    pub fn first(&self) -> Option<&RangeInclusive<T>> {
+        self.rm.first_range_value().map(|(range, _)| range)
+    }
+
+    /// Returns the last range in the set, if one exists. The range is the minimum range in this
+    /// set.
+    pub fn last(&self) -> Option<&RangeInclusive<T>> {
+        self.rm.last_range_value().map(|(range, _)| range)
+    }
 }
 
 /// An iterator over the ranges of a `RangeInclusiveSet`.
@@ -207,12 +219,23 @@ pub struct Iter<'a, T> {
 impl<'a, T> Iterator for Iter<'a, T> {
     type Item = &'a RangeInclusive<T>;
 
-    fn next(&mut self) -> Option<&'a RangeInclusive<T>> {
+    fn next(&mut self) -> Option<Self::Item> {
         self.inner.next().map(|(range, _)| range)
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.inner.size_hint()
+    }
+}
+
+impl<'a, K> DoubleEndedIterator for Iter<'a, K>
+where
+    K: 'a,
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.inner
+            .next_back()
+            .map(|(range, _)| range)
     }
 }
 
