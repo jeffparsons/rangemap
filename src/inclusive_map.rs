@@ -544,13 +544,17 @@ where
     /// Returns the first range-value pair in this map, if one exists. The range in this pair is the
     /// minimum range in the map.
     pub fn first_range_value(&self) -> Option<(&RangeInclusive<K>, &V)> {
-        self.btm.first_key_value().map(|(range, value)| (&range.end_wrapper.range, value))
+        self.btm
+            .first_key_value()
+            .map(|(range, value)| (&range.end_wrapper.range, value))
     }
 
     /// Returns the last range-value pair in this map, if one exists. The range in this pair is the
     /// maximum range in the map.
     pub fn last_range_value(&self) -> Option<(&RangeInclusive<K>, &V)> {
-        self.btm.last_key_value().map(|(range, value)| (&range.end_wrapper.range, value))
+        self.btm
+            .last_key_value()
+            .map(|(range, value)| (&range.end_wrapper.range, value))
     }
 }
 
@@ -625,6 +629,14 @@ impl<K, V> Iterator for IntoIter<K, V> {
     }
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.inner.size_hint()
+    }
+}
+
+impl<K, V> DoubleEndedIterator for IntoIter<K, V> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.inner
+            .next_back()
+            .map(|(range, value)| (range.end_wrapper.range, value))
     }
 }
 

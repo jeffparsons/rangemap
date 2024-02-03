@@ -233,9 +233,7 @@ where
     K: 'a,
 {
     fn next_back(&mut self) -> Option<Self::Item> {
-        self.inner
-            .next_back()
-            .map(|(range, _)| range)
+        self.inner.next_back().map(|(range, _)| range)
     }
 }
 
@@ -266,6 +264,12 @@ impl<T> Iterator for IntoIter<T> {
     }
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.inner.size_hint()
+    }
+}
+
+impl<K> DoubleEndedIterator for IntoIter<K> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.inner.next_back().map(|(range, _)| range)
     }
 }
 
