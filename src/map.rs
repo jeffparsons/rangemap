@@ -801,7 +801,55 @@ mod tests {
     use super::*;
     use alloc as std;
     use alloc::{format, string::String, vec, vec::Vec};
+    use proptest::prelude::*;
     use test_strategy::proptest;
+
+    impl<K, V> Arbitrary for RangeMap<K, V>
+    where
+        K: Ord + Clone + Debug + Arbitrary + 'static,
+        V: Clone + Eq + Arbitrary + 'static,
+    {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_parameters: Self::Parameters) -> Self::Strategy {
+            any::<Vec<(Range<K>, V)>>()
+                .prop_map(|ranges| ranges.into_iter().collect::<RangeMap<K, V>>())
+                .boxed()
+        }
+    }
+
+    #[proptest]
+    fn test_first(set: RangeMap<u64, String>) {
+        assert_eq!(
+            set.first_range_value(),
+            set.iter().min_by_key(|(range, _)| range.start)
+        );
+    }
+
+    #[proptest]
+    fn test_last(set: RangeMap<u64, String>) {
+        assert_eq!(
+            set.last_range_value(),
+            set.iter().max_by_key(|(range, _)| range.end)
+        );
+    }
+
+    #[proptest]
+    fn test_iter_reversible(set: RangeMap<u64, String>) {
+        let forward: Vec<_> = set.iter().collect();
+        let mut backward: Vec<_> = set.iter().rev().collect();
+        backward.reverse();
+        assert_eq!(forward, backward);
+    }
+
+    #[proptest]
+    fn test_into_iter_reversible(set: RangeMap<u64, String>) {
+        let forward: Vec<_> = set.clone().into_iter().collect();
+        let mut backward: Vec<_> = set.into_iter().rev().collect();
+        backward.reverse();
+        assert_eq!(forward, backward);
+    }
 
     #[proptest]
     fn test_arbitrary_map_u8(ranges: Vec<(Range<u8>, String)>) {

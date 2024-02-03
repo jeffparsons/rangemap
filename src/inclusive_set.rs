@@ -462,11 +462,14 @@ mod tests {
     use proptest::prelude::*;
     use test_strategy::proptest;
 
-    impl<T: Ord + Clone + StepLite + Debug + Arbitrary + 'static> Arbitrary for RangeInclusiveSet<T> {
+    impl<T> Arbitrary for RangeInclusiveSet<T>
+    where
+        T: Ord + Clone + StepLite + Debug + Arbitrary + 'static,
+    {
         type Parameters = ();
         type Strategy = BoxedStrategy<Self>;
 
-        fn arbitrary_with(parameters: Self::Parameters) -> Self::Strategy {
+        fn arbitrary_with(_parameters: Self::Parameters) -> Self::Strategy {
             any::<Vec<RangeInclusive<T>>>()
                 .prop_map(|ranges| ranges.into_iter().collect::<RangeInclusiveSet<T>>())
                 .boxed()
@@ -527,10 +530,6 @@ mod tests {
                 ranges.iter().any(|range| range.contains(&value))
             );
         }
-    }
-
-    fn collect<T: Ord + Clone + StepLite>(input: Vec<RangeInclusive<T>>) -> RangeInclusiveSet<T> {
-        input.into_iter().collect()
     }
 
     #[test]

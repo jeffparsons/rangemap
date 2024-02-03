@@ -911,7 +911,55 @@ mod tests {
     use super::*;
     use alloc as std;
     use alloc::{format, string::String, vec, vec::Vec};
+    use proptest::prelude::*;
     use test_strategy::proptest;
+
+    impl<K, V> Arbitrary for RangeInclusiveMap<K, V>
+    where
+        K: Ord + Clone + Debug + StepLite + Arbitrary + 'static,
+        V: Clone + Eq + Arbitrary + 'static,
+    {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_parameters: Self::Parameters) -> Self::Strategy {
+            any::<Vec<(RangeInclusive<K>, V)>>()
+                .prop_map(|ranges| ranges.into_iter().collect::<RangeInclusiveMap<K, V>>())
+                .boxed()
+        }
+    }
+
+    #[proptest]
+    fn test_first(set: RangeInclusiveMap<u64, String>) {
+        assert_eq!(
+            set.first_range_value(),
+            set.iter().min_by_key(|(range, _)| range.start())
+        );
+    }
+
+    #[proptest]
+    fn test_last(set: RangeInclusiveMap<u64, String>) {
+        assert_eq!(
+            set.last_range_value(),
+            set.iter().max_by_key(|(range, _)| range.end())
+        );
+    }
+
+    #[proptest]
+    fn test_iter_reversible(set: RangeInclusiveMap<u64, String>) {
+        let forward: Vec<_> = set.iter().collect();
+        let mut backward: Vec<_> = set.iter().rev().collect();
+        backward.reverse();
+        assert_eq!(forward, backward);
+    }
+
+    #[proptest]
+    fn test_into_iter_reversible(set: RangeInclusiveMap<u64, String>) {
+        let forward: Vec<_> = set.clone().into_iter().collect();
+        let mut backward: Vec<_> = set.into_iter().rev().collect();
+        backward.reverse();
+        assert_eq!(forward, backward);
+    }
 
     #[proptest]
     fn test_arbitrary_map_u8(ranges: Vec<(RangeInclusive<u8>, String)>) {

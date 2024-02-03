@@ -393,14 +393,17 @@ mod tests {
     use super::*;
     use alloc as std;
     use alloc::{format, vec, vec::Vec};
-    use test_strategy::proptest;
     use proptest::prelude::*;
+    use test_strategy::proptest;
 
-    impl<T: Ord + Clone + Debug + Arbitrary + 'static> Arbitrary for RangeSet<T> {
+    impl<T> Arbitrary for RangeSet<T>
+    where
+        T: Ord + Clone + Debug + Arbitrary + 'static,
+    {
         type Parameters = ();
         type Strategy = BoxedStrategy<Self>;
 
-        fn arbitrary_with(parameters: Self::Parameters) -> Self::Strategy {
+        fn arbitrary_with(_parameters: Self::Parameters) -> Self::Strategy {
             any::<Vec<Range<T>>>()
                 .prop_map(|ranges| ranges.into_iter().collect::<RangeSet<T>>())
                 .boxed()
