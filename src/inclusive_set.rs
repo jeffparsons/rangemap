@@ -433,6 +433,15 @@ where
     }
 }
 
+impl<'a, T, R: Borrow<RangeInclusive<T>>> DoubleEndedIterator for Overlapping<'a, T, R>
+where
+    T: Ord + Clone,
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.inner.next_back().map(|(k, _v)| k)
+    }
+}
+
 impl<T: Ord + Clone + StepLite, const N: usize> From<[RangeInclusive<T>; N]>
     for RangeInclusiveSet<T>
 {

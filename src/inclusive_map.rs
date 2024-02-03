@@ -873,6 +873,27 @@ where
     }
 }
 
+impl<'a, K, V, R: Borrow<RangeInclusive<K>>> DoubleEndedIterator for Overlapping<'a, K, V, R>
+where
+    K: Ord + Clone,
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        if let Some((k, v)) = self.btm_range_iter.next_back() {
+            if k.start() <= self.query_range.borrow().end() {
+                Some((&k.range, v))
+            } else {
+                // The rest of the items in the underlying iterator
+                // are past the query range. We can keep taking items
+                // from that iterator and this will remain true,
+                // so this is enough to make the iterator fused.
+                None
+            }
+        } else {
+            None
+        }
+    }
+}
+
 impl<K: Ord + Clone + StepLite, V: Eq + Clone, const N: usize> From<[(RangeInclusive<K>, V); N]>
     for RangeInclusiveMap<K, V>
 {

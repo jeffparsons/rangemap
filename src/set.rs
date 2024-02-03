@@ -369,6 +369,15 @@ where
     }
 }
 
+impl<'a, T, R: Borrow<Range<T>>> DoubleEndedIterator for Overlapping<'a, T, R>
+where
+    T: Ord + Clone,
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.inner.next_back().map(|(k, _v)| k)
+    }
+}
+
 impl<T: Ord + Clone, const N: usize> From<[Range<T>; N]> for RangeSet<T> {
     fn from(value: [Range<T>; N]) -> Self {
         let mut set = Self::new();
