@@ -1,12 +1,12 @@
 use criterion::{black_box, criterion_group, criterion_main, Criterion, Throughput};
 use proptest::{prelude::*, strategy::ValueTree, test_runner::TestRunner};
 use rangemap::*;
-use std::ops::Range;
-use std::{fmt::Debug, ops::*};
+use std::{any::type_name, fmt::Debug, ops::*};
 use test_strategy::Arbitrary;
 
 type Key = i64;
-type Value = bool;
+type Value = i64;
+
 const COUNT: usize = 100000;
 const OPERATIONS: usize = 100000;
 const LOOKUPS: usize = 1000000;
@@ -36,7 +36,11 @@ fn range_map<K: Ord + StepLite + Debug + Clone, V: Eq + Clone + Debug>(
 fn criterion_benchmark(c: &mut Criterion) {
     let mut runner = TestRunner::deterministic();
 
-    let mut group = c.benchmark_group("RangeMap");
+    let mut group = c.benchmark_group(&format!(
+        "RangeMap<{}, {}>",
+        type_name::<Key>(),
+        type_name::<Value>()
+    ));
 
     group.throughput(Throughput::Elements(COUNT as u64));
     group.bench_function("insert", |b| {
@@ -94,7 +98,11 @@ fn criterion_benchmark(c: &mut Criterion) {
 
     group.finish();
 
-    let mut group = c.benchmark_group("RangeInclusiveMap");
+    let mut group = c.benchmark_group(&format!(
+        "RangeInclusiveMap<{}, {}>",
+        type_name::<Key>(),
+        type_name::<Value>()
+    ));
 
     group.throughput(Throughput::Elements(COUNT as u64));
     group.bench_function("insert", |b| {
