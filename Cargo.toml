@@ -44,5 +44,5 @@ nightly = []
 const_fn = []
 
 [[bench]]
-name = "kitchen_sink"
+name = "benches"
 harness = false
