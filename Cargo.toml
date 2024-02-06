@@ -14,7 +14,7 @@ Map and set data structures whose keys are stored as ranges.
 Contiguous and overlapping ranges that map to the same value are coalesced into a single range.
 """
 categories = ["data-structures"]
-rust-version = "1.61.0"
+rust-version = "1.65.0"
 
 [dependencies]
 serde = { version = "1", optional = true }
@@ -27,7 +27,7 @@ permutator = "0.4"
 # (Later problem!)
 criterion = "= 0.3.5"
 rand = "0.8"
-chrono = "0.4" # For examples
+chrono = "0.4"          # For examples
 rustc_version = "0.4"
 serde_json = "1"
 proptest = "1.4.0"

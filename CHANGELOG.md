@@ -1,3 +1,9 @@
+### v1.5.0 (unreleased)
+
+- **Changes**:
+    - Bump minimum supported Rust version to 1.65.0 (released 2022-11-03). This is for compatibility with new versions of some of rangemap's test dependencies.
+    - TODO: All of xfbs's PRs!
+
 ### v1.4.0 (2023-09-19)
 
 - **Changes**:
