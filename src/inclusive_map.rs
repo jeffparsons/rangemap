@@ -900,6 +900,25 @@ impl<K: Ord + Clone + StepLite, V: Eq + Clone, const N: usize> From<[(RangeInclu
     }
 }
 
+/// Create a [`RangeInclusiveMap`] from key-value pairs.
+///
+/// # Example
+///
+/// ```rust
+/// # use rangemap::range_inclusive_map;
+/// let map = range_inclusive_map!{
+///     0..=100 => "abc",
+///     100..=200 => "def",
+///     200..=300 => "ghi"
+/// };
+/// ```
+#[macro_export]
+macro_rules! range_inclusive_map {
+    ($($k:expr => $v:expr),* $(,)?) => {{
+        <$crate::RangeInclusiveMap<_, _> as core::iter::FromIterator<_>>::from_iter([$(($k, $v),)*])
+    }};
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -999,6 +1018,17 @@ mod tests {
         assert_eq!(
             map,
             RangeInclusiveMap::from([(0..=100, "hello"), (200..=300, "world")])
+        );
+    }
+
+    #[test]
+    fn test_macro() {
+        assert_eq!(
+            range_inclusive_map!(0..=100 => "abc", 100..=200 => "def", 200..=300 => "ghi"),
+            [(0..=100, "abc"), (100..=200, "def"), (200..=300, "ghi")]
+                .iter()
+                .cloned()
+                .collect(),
         );
     }
 
