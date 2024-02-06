@@ -1,7 +1,7 @@
 use core::borrow::Borrow;
 use core::cmp::Ordering;
 use core::fmt::{self, Debug};
-use core::iter::FromIterator;
+use core::iter::{DoubleEndedIterator, FromIterator};
 use core::ops::RangeInclusive;
 
 #[cfg(feature = "serde1")]
@@ -192,6 +192,18 @@ where
     pub fn overlaps(&self, range: &RangeInclusive<T>) -> bool {
         self.overlapping(range).next().is_some()
     }
+
+    /// Returns the first range in the set, if one exists. The range is the minimum range in this
+    /// set.
+    pub fn first(&self) -> Option<&RangeInclusive<T>> {
+        self.rm.first_range_value().map(|(range, _)| range)
+    }
+
+    /// Returns the last range in the set, if one exists. The range is the maximum range in this
+    /// set.
+    pub fn last(&self) -> Option<&RangeInclusive<T>> {
+        self.rm.last_range_value().map(|(range, _)| range)
+    }
 }
 
 /// An iterator over the ranges of a `RangeInclusiveSet`.
@@ -207,12 +219,21 @@ pub struct Iter<'a, T> {
 impl<'a, T> Iterator for Iter<'a, T> {
     type Item = &'a RangeInclusive<T>;
 
-    fn next(&mut self) -> Option<&'a RangeInclusive<T>> {
+    fn next(&mut self) -> Option<Self::Item> {
         self.inner.next().map(|(range, _)| range)
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.inner.size_hint()
+    }
+}
+
+impl<'a, K> DoubleEndedIterator for Iter<'a, K>
+where
+    K: 'a,
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.inner.next_back().map(|(range, _)| range)
     }
 }
 
@@ -243,6 +264,12 @@ impl<T> Iterator for IntoIter<T> {
     }
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.inner.size_hint()
+    }
+}
+
+impl<K> DoubleEndedIterator for IntoIter<K> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.inner.next_back().map(|(range, _)| range)
     }
 }
 
@@ -406,6 +433,15 @@ where
     }
 }
 
+impl<'a, T, R: Borrow<RangeInclusive<T>>> DoubleEndedIterator for Overlapping<'a, T, R>
+where
+    T: Ord + Clone,
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.inner.next_back().map(|(k, _v)| k)
+    }
+}
+
 impl<T: Ord + Clone + StepLite, const N: usize> From<[RangeInclusive<T>; N]>
     for RangeInclusiveSet<T>
 {
@@ -423,7 +459,56 @@ mod tests {
     use super::*;
     use alloc as std;
     use alloc::{format, vec, vec::Vec};
+    use proptest::prelude::*;
     use test_strategy::proptest;
+
+    impl<T> Arbitrary for RangeInclusiveSet<T>
+    where
+        T: Ord + Clone + StepLite + Debug + Arbitrary + 'static,
+    {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_parameters: Self::Parameters) -> Self::Strategy {
+            any::<Vec<RangeInclusive<T>>>()
+                .prop_map(|ranges| ranges.into_iter().collect::<RangeInclusiveSet<T>>())
+                .boxed()
+        }
+    }
+
+    #[proptest]
+    fn test_first(set: RangeInclusiveSet<u64>) {
+        assert_eq!(set.first(), set.iter().min_by_key(|range| range.start()));
+    }
+
+    #[proptest]
+    fn test_last(set: RangeInclusiveSet<u64>) {
+        assert_eq!(set.last(), set.iter().max_by_key(|range| range.end()));
+    }
+
+    #[proptest]
+    fn test_iter_reversible(set: RangeInclusiveSet<u64>) {
+        let forward: Vec<_> = set.iter().collect();
+        let mut backward: Vec<_> = set.iter().rev().collect();
+        backward.reverse();
+        assert_eq!(forward, backward);
+    }
+
+    #[proptest]
+    fn test_into_iter_reversible(set: RangeInclusiveSet<u64>) {
+        let forward: Vec<_> = set.clone().into_iter().collect();
+        let mut backward: Vec<_> = set.into_iter().rev().collect();
+        backward.reverse();
+        assert_eq!(forward, backward);
+    }
+
+    #[proptest]
+    fn test_overlapping_reversible(set: RangeInclusiveSet<u64>, range: RangeInclusive<u64>) {
+        let forward: Vec<_> = set.overlapping(&range).collect();
+        let mut backward: Vec<_> = set.overlapping(&range).rev().collect();
+        backward.reverse();
+        assert_eq!(forward, backward);
+    }
 
     #[proptest]
     fn test_arbitrary_set_u8(ranges: Vec<RangeInclusive<u8>>) {

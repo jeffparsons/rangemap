@@ -1,6 +1,6 @@
 use core::borrow::Borrow;
 use core::fmt::{self, Debug};
-use core::iter::FromIterator;
+use core::iter::{DoubleEndedIterator, FromIterator};
 use core::ops::Range;
 use core::prelude::v1::*;
 
@@ -134,6 +134,18 @@ where
     pub fn overlaps(&self, range: &Range<T>) -> bool {
         self.overlapping(range).next().is_some()
     }
+
+    /// Returns the first range in the set, if one exists. The range is the minimum range in this
+    /// set.
+    pub fn first(&self) -> Option<&Range<T>> {
+        self.rm.first_range_value().map(|(range, _)| range)
+    }
+
+    /// Returns the last range in the set, if one exists. The range is the maximum range in this
+    /// set.
+    pub fn last(&self) -> Option<&Range<T>> {
+        self.rm.last_range_value().map(|(range, _)| range)
+    }
 }
 
 /// An iterator over the ranges of a `RangeSet`.
@@ -149,12 +161,21 @@ pub struct Iter<'a, T> {
 impl<'a, T> Iterator for Iter<'a, T> {
     type Item = &'a Range<T>;
 
-    fn next(&mut self) -> Option<&'a Range<T>> {
+    fn next(&mut self) -> Option<Self::Item> {
         self.inner.next().map(|(range, _)| range)
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.inner.size_hint()
+    }
+}
+
+impl<'a, K> DoubleEndedIterator for Iter<'a, K>
+where
+    K: 'a,
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.inner.next_back().map(|(range, _)| range)
     }
 }
 
@@ -185,6 +206,12 @@ impl<T> Iterator for IntoIter<T> {
     }
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.inner.size_hint()
+    }
+}
+
+impl<K> DoubleEndedIterator for IntoIter<K> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.inner.next_back().map(|(range, _)| range)
     }
 }
 
@@ -342,6 +369,15 @@ where
     }
 }
 
+impl<'a, T, R: Borrow<Range<T>>> DoubleEndedIterator for Overlapping<'a, T, R>
+where
+    T: Ord + Clone,
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.inner.next_back().map(|(k, _v)| k)
+    }
+}
+
 impl<T: Ord + Clone, const N: usize> From<[Range<T>; N]> for RangeSet<T> {
     fn from(value: [Range<T>; N]) -> Self {
         let mut set = Self::new();
@@ -357,7 +393,56 @@ mod tests {
     use super::*;
     use alloc as std;
     use alloc::{format, vec, vec::Vec};
+    use proptest::prelude::*;
     use test_strategy::proptest;
+
+    impl<T> Arbitrary for RangeSet<T>
+    where
+        T: Ord + Clone + Debug + Arbitrary + 'static,
+    {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_parameters: Self::Parameters) -> Self::Strategy {
+            any::<Vec<Range<T>>>()
+                .prop_map(|ranges| ranges.into_iter().collect::<RangeSet<T>>())
+                .boxed()
+        }
+    }
+
+    #[proptest]
+    fn test_first(set: RangeSet<u64>) {
+        assert_eq!(set.first(), set.iter().min_by_key(|range| range.start));
+    }
+
+    #[proptest]
+    fn test_last(set: RangeSet<u64>) {
+        assert_eq!(set.last(), set.iter().max_by_key(|range| range.end));
+    }
+
+    #[proptest]
+    fn test_iter_reversible(set: RangeSet<u64>) {
+        let forward: Vec<_> = set.iter().collect();
+        let mut backward: Vec<_> = set.iter().rev().collect();
+        backward.reverse();
+        assert_eq!(forward, backward);
+    }
+
+    #[proptest]
+    fn test_into_iter_reversible(set: RangeSet<u64>) {
+        let forward: Vec<_> = set.clone().into_iter().collect();
+        let mut backward: Vec<_> = set.into_iter().rev().collect();
+        backward.reverse();
+        assert_eq!(forward, backward);
+    }
+
+    #[proptest]
+    fn test_overlapping_reversible(set: RangeSet<u64>, range: Range<u64>) {
+        let forward: Vec<_> = set.overlapping(&range).collect();
+        let mut backward: Vec<_> = set.overlapping(&range).rev().collect();
+        backward.reverse();
+        assert_eq!(forward, backward);
+    }
 
     #[proptest]
     fn test_arbitrary_set_u8(ranges: Vec<Range<u8>>) {

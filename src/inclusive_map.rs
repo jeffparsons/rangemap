@@ -5,7 +5,7 @@ use alloc::collections::BTreeMap;
 use core::borrow::Borrow;
 use core::cmp::Ordering;
 use core::fmt::{self, Debug};
-use core::iter::FromIterator;
+use core::iter::{DoubleEndedIterator, FromIterator};
 use core::marker::PhantomData;
 use core::ops::{RangeFrom, RangeInclusive};
 use core::prelude::v1::*;
@@ -540,6 +540,22 @@ where
     pub fn overlaps(&self, range: &RangeInclusive<K>) -> bool {
         self.overlapping(range).next().is_some()
     }
+
+    /// Returns the first range-value pair in this map, if one exists. The range in this pair is the
+    /// minimum range in the map.
+    pub fn first_range_value(&self) -> Option<(&RangeInclusive<K>, &V)> {
+        self.btm
+            .first_key_value()
+            .map(|(range, value)| (&range.end_wrapper.range, value))
+    }
+
+    /// Returns the last range-value pair in this map, if one exists. The range in this pair is the
+    /// maximum range in the map.
+    pub fn last_range_value(&self) -> Option<(&RangeInclusive<K>, &V)> {
+        self.btm
+            .last_key_value()
+            .map(|(range, value)| (&range.end_wrapper.range, value))
+    }
 }
 
 /// An iterator over the entries of a `RangeInclusiveMap`, ordered by key range.
@@ -561,12 +577,24 @@ where
 {
     type Item = (&'a RangeInclusive<K>, &'a V);
 
-    fn next(&mut self) -> Option<(&'a RangeInclusive<K>, &'a V)> {
+    fn next(&mut self) -> Option<Self::Item> {
         self.inner.next().map(|(by_start, v)| (&by_start.range, v))
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.inner.size_hint()
+    }
+}
+
+impl<'a, K, V> DoubleEndedIterator for Iter<'a, K, V>
+where
+    K: 'a,
+    V: 'a,
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.inner
+            .next_back()
+            .map(|(range, value)| (&range.end_wrapper.range, value))
     }
 }
 
@@ -601,6 +629,14 @@ impl<K, V> Iterator for IntoIter<K, V> {
     }
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.inner.size_hint()
+    }
+}
+
+impl<K, V> DoubleEndedIterator for IntoIter<K, V> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.inner
+            .next_back()
+            .map(|(range, value)| (range.end_wrapper.range, value))
     }
 }
 
@@ -837,6 +873,21 @@ where
     }
 }
 
+impl<'a, K, V, R: Borrow<RangeInclusive<K>>> DoubleEndedIterator for Overlapping<'a, K, V, R>
+where
+    K: Ord + Clone,
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        while let Some((k, v)) = self.btm_range_iter.next_back() {
+            if k.start() <= self.query_range.borrow().end() {
+                return Some((&k.range, v));
+            }
+        }
+
+        None
+    }
+}
+
 impl<K: Ord + Clone + StepLite, V: Eq + Clone, const N: usize> From<[(RangeInclusive<K>, V); N]>
     for RangeInclusiveMap<K, V>
 {
@@ -852,9 +903,68 @@ impl<K: Ord + Clone + StepLite, V: Eq + Clone, const N: usize> From<[(RangeInclu
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alloc::{format, vec, vec::Vec, string::String};
-    use test_strategy::proptest;
     use alloc as std;
+    use alloc::{format, string::String, vec, vec::Vec};
+    use proptest::prelude::*;
+    use test_strategy::proptest;
+
+    impl<K, V> Arbitrary for RangeInclusiveMap<K, V>
+    where
+        K: Ord + Clone + Debug + StepLite + Arbitrary + 'static,
+        V: Clone + Eq + Arbitrary + 'static,
+    {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_parameters: Self::Parameters) -> Self::Strategy {
+            any::<Vec<(RangeInclusive<K>, V)>>()
+                .prop_map(|ranges| ranges.into_iter().collect::<RangeInclusiveMap<K, V>>())
+                .boxed()
+        }
+    }
+
+    #[proptest]
+    fn test_first(set: RangeInclusiveMap<u64, String>) {
+        assert_eq!(
+            set.first_range_value(),
+            set.iter().min_by_key(|(range, _)| range.start())
+        );
+    }
+
+    #[proptest]
+    fn test_last(set: RangeInclusiveMap<u64, String>) {
+        assert_eq!(
+            set.last_range_value(),
+            set.iter().max_by_key(|(range, _)| range.end())
+        );
+    }
+
+    #[proptest]
+    fn test_iter_reversible(set: RangeInclusiveMap<u64, String>) {
+        let forward: Vec<_> = set.iter().collect();
+        let mut backward: Vec<_> = set.iter().rev().collect();
+        backward.reverse();
+        assert_eq!(forward, backward);
+    }
+
+    #[proptest]
+    fn test_into_iter_reversible(set: RangeInclusiveMap<u64, String>) {
+        let forward: Vec<_> = set.clone().into_iter().collect();
+        let mut backward: Vec<_> = set.into_iter().rev().collect();
+        backward.reverse();
+        assert_eq!(forward, backward);
+    }
+
+    #[proptest]
+    fn test_overlapping_reversible(
+        set: RangeInclusiveMap<u64, String>,
+        range: RangeInclusive<u64>,
+    ) {
+        let forward: Vec<_> = set.overlapping(&range).collect();
+        let mut backward: Vec<_> = set.overlapping(&range).rev().collect();
+        backward.reverse();
+        assert_eq!(forward, backward);
+    }
 
     #[proptest]
     fn test_arbitrary_map_u8(ranges: Vec<(RangeInclusive<u8>, String)>) {
