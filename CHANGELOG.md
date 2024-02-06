@@ -1,7 +1,7 @@
 ### v1.5.0 (unreleased)
 
 - **Changes**:
-    - Bump minimum supported Rust version to 1.65.0 (released 2022-11-03). This is for compatibility with new versions of some of rangemap's test dependencies.
+    - Bump minimum supported Rust version to 1.66.0 (released 2022-12-15). This is to gain access to `BTreeMap::first_key_value` and `BTreeMap::last_key_value`, and for compatibility with new versions of some of rangemap's test dependencies.
     - TODO: All of xfbs's PRs!
 
 ### v1.4.0 (2023-09-19)
