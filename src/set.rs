@@ -141,7 +141,7 @@ where
         self.rm.first_range_value().map(|(range, _)| range)
     }
 
-    /// Returns the last range in the set, if one exists. The range is the minimum range in this
+    /// Returns the last range in the set, if one exists. The range is the maximum range in this
     /// set.
     pub fn last(&self) -> Option<&Range<T>> {
         self.rm.last_range_value().map(|(range, _)| range)
