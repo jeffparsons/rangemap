@@ -179,12 +179,12 @@ where
         self.rm.last_range_value().map(|(range, _)| range)
     }
 
-    /// Iterator over the union of two range sets.
+    /// Return an iterator over the union of two range sets.
     pub fn union<'a>(&'a self, other: &'a Self) -> Union<'a, T> {
         Union::new(self.iter(), other.iter())
     }
 
-    /// Iterator over the intersection of two range sets.
+    /// Return an iterator over the intersection of two range sets.
     pub fn intersection<'a>(&'a self, other: &'a Self) -> Intersection<'a, T> {
         Intersection::new(self.iter(), other.iter())
     }

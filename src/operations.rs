@@ -33,7 +33,7 @@ impl<T: Ord> RangeOrder for RangeInclusive<T> {
 
 /// Range which can be merged with a next range if they overlap.
 trait RangeMerge: Sized {
-    /// Attempt to merge the next range into the current range, if they overlap.
+    /// Merges this range and the next range, if they overlap.
     fn merge(&mut self, next: &Self) -> bool;
 }
 
