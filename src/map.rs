@@ -5,6 +5,7 @@ use alloc::collections::BTreeMap;
 use core::borrow::Borrow;
 use core::cmp::Ordering;
 use core::fmt::{self, Debug};
+use core::hash::Hash;
 use core::iter::{DoubleEndedIterator, FromIterator};
 use core::ops::{Bound, Range};
 use core::prelude::v1::*;
@@ -22,11 +23,24 @@ use serde::{
 ///
 /// Contiguous and overlapping ranges that map to the same value
 /// are coalesced into a single range.
-#[derive(Clone, Hash, Default, Eq)]
+#[derive(Clone, Default, Eq)]
 pub struct RangeMap<K, V> {
     // Wrap ranges so that they are `Ord`.
     // See `range_wrapper.rs` for explanation.
     pub(crate) btm: BTreeMap<RangeStartWrapper<K>, V>,
+}
+
+impl<K, V> Hash for RangeMap<K, V>
+where
+    K: Hash,
+    V: Hash,
+{
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
+        state.write_usize(self.btm.len());
+        for elt in self.iter() {
+            elt.hash(state);
+        }
+    }
 }
 
 impl<K, V> PartialEq for RangeMap<K, V>

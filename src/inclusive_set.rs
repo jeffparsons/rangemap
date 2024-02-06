@@ -1,5 +1,4 @@
 use core::borrow::Borrow;
-use core::cmp::Ordering;
 use core::fmt::{self, Debug};
 use core::iter::{DoubleEndedIterator, FromIterator};
 use core::ops::RangeInclusive;
@@ -15,7 +14,7 @@ use serde::{
 use crate::std_ext::*;
 use crate::RangeInclusiveMap;
 
-#[derive(Clone, Hash, Default)]
+#[derive(Clone, Hash, Default, Eq, PartialEq, PartialOrd, Ord)]
 /// A set whose items are stored as ranges bounded
 /// inclusively below and above `(start..=end)`.
 ///
@@ -24,37 +23,6 @@ use crate::RangeInclusiveMap;
 /// [`RangeInclusiveMap`]: struct.RangeInclusiveMap.html
 pub struct RangeInclusiveSet<T, StepFnsT = T> {
     rm: RangeInclusiveMap<T, (), StepFnsT>,
-}
-
-impl<T, StepFnsT> PartialEq for RangeInclusiveSet<T, StepFnsT>
-where
-    T: PartialEq,
-{
-    fn eq(&self, other: &Self) -> bool {
-        self.rm == other.rm
-    }
-}
-
-impl<T, StepFnsT> Eq for RangeInclusiveSet<T, StepFnsT> where T: Eq {}
-
-impl<T, StepFnsT> PartialOrd for RangeInclusiveSet<T, StepFnsT>
-where
-    T: PartialOrd,
-{
-    #[inline]
-    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
-        self.rm.partial_cmp(&other.rm)
-    }
-}
-
-impl<T, StepFnsT> Ord for RangeInclusiveSet<T, StepFnsT>
-where
-    T: Ord,
-{
-    #[inline]
-    fn cmp(&self, other: &Self) -> Ordering {
-        self.rm.cmp(&other.rm)
-    }
 }
 
 impl<T> RangeInclusiveSet<T, T>

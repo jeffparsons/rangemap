@@ -32,7 +32,7 @@ use core::ops::{Deref, Range, RangeInclusive};
 // Range start wrapper
 //
 
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone)]
 pub struct RangeStartWrapper<T> {
     pub end_wrapper: RangeEndWrapper<T>,
 }
@@ -94,7 +94,7 @@ impl<T> Deref for RangeStartWrapper<T> {
 // Range end wrapper
 //
 
-#[derive(Debug, Clone, Hash)]
+#[derive(Debug, Clone)]
 pub struct RangeEndWrapper<T> {
     pub range: Range<T>,
 }
@@ -148,7 +148,7 @@ impl<T> Deref for RangeEndWrapper<T> {
 // RangeInclusive start wrapper
 //
 
-#[derive(Eq, Debug, Clone, Hash)]
+#[derive(Eq, Debug, Clone)]
 pub struct RangeInclusiveStartWrapper<T> {
     pub end_wrapper: RangeInclusiveEndWrapper<T>,
 }
@@ -208,7 +208,7 @@ impl<T> Deref for RangeInclusiveStartWrapper<T> {
 // RangeInclusive end wrapper
 //
 
-#[derive(Eq, Debug, Clone, Hash)]
+#[derive(Eq, Debug, Clone)]
 pub struct RangeInclusiveEndWrapper<T> {
     pub range: RangeInclusive<T>,
 }

@@ -5,6 +5,7 @@ use alloc::collections::BTreeMap;
 use core::borrow::Borrow;
 use core::cmp::Ordering;
 use core::fmt::{self, Debug};
+use core::hash::Hash;
 use core::iter::{DoubleEndedIterator, FromIterator};
 use core::marker::PhantomData;
 use core::ops::{RangeFrom, RangeInclusive};
@@ -33,12 +34,25 @@ use serde::{
 /// you can provide equivalent free functions using the `StepFnsT` type parameter.
 /// [`StepLite`](crate::StepLite) is implemented for all standard integer types,
 /// but not for any third party crate types.
-#[derive(Clone, Hash, Default)]
+#[derive(Clone, Default)]
 pub struct RangeInclusiveMap<K, V, StepFnsT = K> {
     // Wrap ranges so that they are `Ord`.
     // See `range_wrapper.rs` for explanation.
     pub(crate) btm: BTreeMap<RangeInclusiveStartWrapper<K>, V>,
     _phantom: PhantomData<StepFnsT>,
+}
+
+impl<K, V, StepFnsT> Hash for RangeInclusiveMap<K, V, StepFnsT>
+where
+    K: Hash,
+    V: Hash,
+{
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
+        state.write_usize(self.btm.len());
+        for elt in self.iter() {
+            elt.hash(state);
+        }
+    }
 }
 
 impl<K, V, StepFnsT> PartialEq for RangeInclusiveMap<K, V, StepFnsT>
@@ -77,6 +91,18 @@ where
     #[inline]
     fn cmp(&self, other: &RangeInclusiveMap<K, V, StepFnsT>) -> Ordering {
         self.btm.cmp(&other.btm)
+    }
+}
+
+impl<K, V, StepFnsT> RangeInclusiveMap<K, V, StepFnsT> {
+    /// Gets an iterator over all pairs of key range and value,
+    /// ordered by key range.
+    ///
+    /// The iterator element type is `(&'a RangeInclusive<K>, &'a V)`.
+    pub fn iter(&self) -> Iter<'_, K, V> {
+        Iter {
+            inner: self.btm.iter(),
+        }
     }
 }
 
@@ -161,16 +187,6 @@ where
     /// Returns `true` if any range in the map covers the specified key.
     pub fn contains_key(&self, key: &K) -> bool {
         self.get(key).is_some()
-    }
-
-    /// Gets an iterator over all pairs of key range and value,
-    /// ordered by key range.
-    ///
-    /// The iterator element type is `(&'a RangeInclusive<K>, &'a V)`.
-    pub fn iter(&self) -> Iter<'_, K, V> {
-        Iter {
-            inner: self.btm.iter(),
-        }
     }
 
     /// Clears the map, removing all elements.
