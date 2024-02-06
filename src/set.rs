@@ -1,4 +1,3 @@
-use crate::operations::{Intersection, Union};
 use core::borrow::Borrow;
 use core::fmt::{self, Debug};
 use core::iter::FromIterator;
@@ -14,6 +13,12 @@ use serde::{
 };
 
 use crate::RangeMap;
+
+/// Intersection iterator over two [`RangeSet`].
+pub type Intersection<'a, T> = crate::operations::Intersection<'a, Range<T>, Iter<'a, T>>;
+
+/// Union iterator over two [`RangeSet`].
+pub type Union<'a, T> = crate::operations::Union<'a, Range<T>, Iter<'a, T>>;
 
 #[derive(Clone, Hash, Default, Eq, PartialEq, PartialOrd, Ord)]
 /// A set whose items are stored as (half-open) ranges bounded
@@ -80,12 +85,12 @@ where
     }
 
     /// Iterator over the intersection of two range sets.
-    pub fn intersection<'a>(&'a self, other: &'a Self) -> Intersection<'a, Range<T>, Iter<'a, T>> {
+    pub fn intersection<'a>(&'a self, other: &'a Self) -> Intersection<'a, T> {
         Intersection::new(self.iter(), other.iter())
     }
 
     /// Iterator over the union of two range sets.
-    pub fn union<'a>(&'a self, other: &'a Self) -> Union<Range<T>, Iter<'a, T>> {
+    pub fn union<'a>(&'a self, other: &'a Self) -> Union<'a, T> {
         Union::new(self.iter(), other.iter())
     }
 
