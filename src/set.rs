@@ -515,6 +515,33 @@ mod tests {
         }
     }
 
+    #[proptest]
+    #[allow(deprecated)]
+    fn test_hash(left: RangeSet<u64>, right: RangeSet<u64>) {
+        use core::hash::{Hash, Hasher, SipHasher};
+
+        let hash = |set: &RangeSet<_>| {
+            let mut hasher = SipHasher::new();
+            set.hash(&mut hasher);
+            hasher.finish()
+        };
+
+        if left == right {
+            assert!(hash(&left) == hash(&right), "if two values are equal, their hash must be equal");
+        }
+
+        // if the hashes are equal the values might not be the same (collision)
+        if hash(&left) != hash(&right) {
+            assert!(left != right, "if two value's hashes are not equal, they must not be equal");
+        }
+    }
+
+    #[proptest]
+    fn test_ord(left: RangeSet<u64>, right: RangeSet<u64>) {
+        assert_eq!(left == right, left.cmp(&right).is_eq(), "ordering and equality must match");
+        assert_eq!(left.cmp(&right), left.partial_cmp(&right).unwrap(), "ordering is total for ordered parameters");
+    }
+
     #[test]
     fn test_from_array() {
         let mut set = RangeSet::new();
