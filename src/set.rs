@@ -431,7 +431,7 @@ impl<T: Ord + Clone, const N: usize> From<[Range<T>; N]> for RangeSet<T> {
 #[macro_export]
 macro_rules! range_set {
     ($($range:expr),* $(,)?) => {{
-        <$crate::RangeSet<_> as core::iter::FromIterator<_>>::from_iter([$($range,)*])
+        $crate::RangeSet::from([$($range),*])
     }};
 }
 
@@ -525,6 +525,7 @@ mod tests {
 
     #[test]
     fn test_macro() {
+        assert_eq!(range_set![], RangeSet::<i64>::new());
         assert_eq!(
             range_set![0..100, 200..300, 400..500],
             [0..100, 200..300, 400..500].iter().cloned().collect(),

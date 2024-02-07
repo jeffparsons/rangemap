@@ -27,7 +27,7 @@ impl<T: Ord> RangeOrder for RangeInclusive<T> {
     }
 
     fn order_end(&self, other: &Self) -> Ordering {
-        self.end().cmp(&other.end())
+        self.end().cmp(other.end())
     }
 }
 
