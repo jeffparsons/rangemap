@@ -452,7 +452,12 @@ mod tests {
 
         fn arbitrary_with(_parameters: Self::Parameters) -> Self::Strategy {
             any::<Vec<Range<T>>>()
-                .prop_map(|ranges| ranges.into_iter().collect::<RangeSet<T>>())
+                .prop_map(|ranges| {
+                    ranges
+                        .into_iter()
+                        .filter(|range| range.start != range.end)
+                        .collect::<RangeSet<T>>()
+                })
                 .boxed()
         }
     }
@@ -460,6 +465,16 @@ mod tests {
     #[proptest]
     fn test_first(set: RangeSet<u64>) {
         assert_eq!(set.first(), set.iter().min_by_key(|range| range.start));
+    }
+
+    #[proptest]
+    fn test_len(mut map: RangeSet<u64>) {
+        assert_eq!(map.len(), map.iter().count());
+        assert_eq!(map.is_empty(), map.len() == 0);
+        map.clear();
+        assert_eq!(map.len(), 0);
+        assert!(map.is_empty());
+        assert_eq!(map.iter().count(), 0);
     }
 
     #[proptest]
@@ -527,19 +542,33 @@ mod tests {
         };
 
         if left == right {
-            assert!(hash(&left) == hash(&right), "if two values are equal, their hash must be equal");
+            assert!(
+                hash(&left) == hash(&right),
+                "if two values are equal, their hash must be equal"
+            );
         }
 
         // if the hashes are equal the values might not be the same (collision)
         if hash(&left) != hash(&right) {
-            assert!(left != right, "if two value's hashes are not equal, they must not be equal");
+            assert!(
+                left != right,
+                "if two value's hashes are not equal, they must not be equal"
+            );
         }
     }
 
     #[proptest]
     fn test_ord(left: RangeSet<u64>, right: RangeSet<u64>) {
-        assert_eq!(left == right, left.cmp(&right).is_eq(), "ordering and equality must match");
-        assert_eq!(left.cmp(&right), left.partial_cmp(&right).unwrap(), "ordering is total for ordered parameters");
+        assert_eq!(
+            left == right,
+            left.cmp(&right).is_eq(),
+            "ordering and equality must match"
+        );
+        assert_eq!(
+            left.cmp(&right),
+            left.partial_cmp(&right).unwrap(),
+            "ordering is total for ordered parameters"
+        );
     }
 
     #[test]
@@ -560,10 +589,7 @@ mod tests {
     }
 
     #[proptest]
-    fn test_union_overlaps_u8(left: Vec<Range<u8>>, right: Vec<Range<u8>>) {
-        let left: RangeSet<_> = filter_ranges(left).into_iter().collect();
-        let right: RangeSet<_> = filter_ranges(right).into_iter().collect();
-
+    fn test_union_overlaps_u8(left: RangeSet<u8>, right: RangeSet<u8>) {
         let mut union = RangeSet::new();
         for range in left.union(&right) {
             // there should not be any overlaps in the ranges returned by the union
@@ -573,10 +599,8 @@ mod tests {
     }
 
     #[proptest]
-    fn test_union_contains_u8(left: Vec<Range<u8>>, right: Vec<Range<u8>>) {
-        let left: RangeSet<_> = filter_ranges(left).into_iter().collect();
-        let right: RangeSet<_> = filter_ranges(right).into_iter().collect();
-        let union: RangeSet<_> = left.union(&right).collect();
+    fn test_union_contains_u8(left: RangeSet<u8>, right: RangeSet<u8>) {
+        let union = (&left) | (&right);
 
         // value should be in the union if and only if it is in either set
         for value in 0..u8::MAX {
@@ -588,25 +612,20 @@ mod tests {
     }
 
     #[proptest]
-    fn test_intersection_contains_u8(left: Vec<Range<u8>>, right: Vec<Range<u8>>) {
-        let left: RangeSet<_> = filter_ranges(left).into_iter().collect();
-        let right: RangeSet<_> = filter_ranges(right).into_iter().collect();
-        let union: RangeSet<_> = left.intersection(&right).collect();
+    fn test_intersection_contains_u8(left: RangeSet<u8>, right: RangeSet<u8>) {
+        let intersection = (&left) & (&right);
 
         // value should be in the union if and only if it is in either set
         for value in 0..u8::MAX {
             assert_eq!(
-                union.contains(&value),
+                intersection.contains(&value),
                 left.contains(&value) && right.contains(&value)
             );
         }
     }
 
     #[proptest]
-    fn test_intersection_overlaps_u8(left: Vec<Range<u8>>, right: Vec<Range<u8>>) {
-        let left: RangeSet<_> = filter_ranges(left).into_iter().collect();
-        let right: RangeSet<_> = filter_ranges(right).into_iter().collect();
-
+    fn test_intersection_overlaps_u8(left: RangeSet<u8>, right: RangeSet<u8>) {
         let mut union = RangeSet::new();
         for range in left.intersection(&right) {
             // there should not be any overlaps in the ranges returned by the

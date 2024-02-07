@@ -959,6 +959,16 @@ mod tests {
     }
 
     #[proptest]
+    fn test_len(mut map: RangeInclusiveMap<u64, String>) {
+        assert_eq!(map.len(), map.iter().count());
+        assert_eq!(map.is_empty(), map.len() == 0);
+        map.clear();
+        assert_eq!(map.len(), 0);
+        assert!(map.is_empty());
+        assert_eq!(map.iter().count(), 0);
+    }
+
+    #[proptest]
     fn test_first(set: RangeInclusiveMap<u64, String>) {
         assert_eq!(
             set.first_range_value(),
@@ -1038,19 +1048,33 @@ mod tests {
         };
 
         if left == right {
-            assert!(hash(&left) == hash(&right), "if two values are equal, their hash must be equal");
+            assert!(
+                hash(&left) == hash(&right),
+                "if two values are equal, their hash must be equal"
+            );
         }
 
         // if the hashes are equal the values might not be the same (collision)
         if hash(&left) != hash(&right) {
-            assert!(left != right, "if two value's hashes are not equal, they must not be equal");
+            assert!(
+                left != right,
+                "if two value's hashes are not equal, they must not be equal"
+            );
         }
     }
 
     #[proptest]
     fn test_ord(left: RangeInclusiveMap<u64, u64>, right: RangeInclusiveMap<u64, u64>) {
-        assert_eq!(left == right, left.cmp(&right).is_eq(), "ordering and equality must match");
-        assert_eq!(left.cmp(&right), left.partial_cmp(&right).unwrap(), "ordering is total for ordered parameters");
+        assert_eq!(
+            left == right,
+            left.cmp(&right).is_eq(),
+            "ordering and equality must match"
+        );
+        assert_eq!(
+            left.cmp(&right),
+            left.partial_cmp(&right).unwrap(),
+            "ordering is total for ordered parameters"
+        );
     }
 
     #[test]
@@ -1066,7 +1090,10 @@ mod tests {
 
     #[test]
     fn test_macro() {
-        assert_eq!(range_inclusive_map![], RangeInclusiveMap::<i64, i64>::new());
+        assert_eq!(
+            range_inclusive_map![],
+            RangeInclusiveMap::<i64, i64>::default()
+        );
         assert_eq!(
             range_inclusive_map!(0..=100 => "abc", 100..=200 => "def", 200..=300 => "ghi"),
             [(0..=100, "abc"), (100..=200, "def"), (200..=300, "ghi")]
