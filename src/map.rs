@@ -819,7 +819,7 @@ impl<K: Ord + Clone, V: Eq + Clone, const N: usize> From<[(Range<K>, V); N]> for
 #[macro_export]
 macro_rules! range_map {
     ($($k:expr => $v:expr),* $(,)?) => {{
-        <$crate::RangeMap<_, _> as core::iter::FromIterator<_>>::from_iter([$(($k, $v),)*])
+        $crate::RangeMap::from([$(($k, $v)),*])
     }};
 }
 
@@ -924,6 +924,7 @@ mod tests {
 
     #[test]
     fn test_macro() {
+        assert_eq!(range_map![], RangeMap::<i64, i64>::new());
         assert_eq!(
             range_map!(0..100 => "abc", 100..200 => "def", 200..300 => "ghi"),
             [(0..100, "abc"), (100..200, "def"), (200..300, "ghi")]

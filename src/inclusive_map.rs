@@ -931,7 +931,7 @@ impl<K: Ord + Clone + StepLite, V: Eq + Clone, const N: usize> From<[(RangeInclu
 #[macro_export]
 macro_rules! range_inclusive_map {
     ($($k:expr => $v:expr),* $(,)?) => {{
-        <$crate::RangeInclusiveMap<_, _> as core::iter::FromIterator<_>>::from_iter([$(($k, $v),)*])
+        $crate::RangeInclusiveMap::from([$(($k, $v)),*])
     }};
 }
 
@@ -1039,6 +1039,7 @@ mod tests {
 
     #[test]
     fn test_macro() {
+        assert_eq!(range_inclusive_map![], RangeInclusiveMap::<i64, i64>::new());
         assert_eq!(
             range_inclusive_map!(0..=100 => "abc", 100..=200 => "def", 200..=300 => "ghi"),
             [(0..=100, "abc"), (100..=200, "def"), (200..=300, "ghi")]

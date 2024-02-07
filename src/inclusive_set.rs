@@ -449,7 +449,7 @@ impl<T: Ord + Clone + StepLite, const N: usize> From<[RangeInclusive<T>; N]>
 #[macro_export]
 macro_rules! range_inclusive_set {
     ($($range:expr),* $(,)?) => {{
-        <$crate::RangeInclusiveSet<_> as core::iter::FromIterator<_>>::from_iter([$($range,)*])
+        $crate::RangeInclusiveSet::from([$($range),*])
     }};
 }
 
@@ -561,6 +561,7 @@ mod tests {
 
     #[test]
     fn test_macro() {
+        assert_eq!(range_inclusive_set![], RangeInclusiveSet::<i64>::new());
         assert_eq!(
             range_inclusive_set![0..=100, 200..=300, 400..=500],
             [0..=100, 200..=300, 400..=500].iter().cloned().collect(),
