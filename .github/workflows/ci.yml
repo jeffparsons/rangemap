@@ -2,7 +2,7 @@ name: CI
 
 on:
   push:
-    branches: [master, staging, trying]
+    branches: [main, staging, trying]
   pull_request:
     branches: [main]
 
@@ -16,7 +16,7 @@ jobs:
       matrix:
         toolchain:
           # Don't forget to update the README when bumping MSRV.
-          - 1.65.0
+          - 1.66.0
           - stable
           - beta
           - nightly
