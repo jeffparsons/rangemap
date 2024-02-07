@@ -1,7 +1,7 @@
 use core::borrow::Borrow;
 use core::fmt::{self, Debug};
-use core::iter::{DoubleEndedIterator, FromIterator};
-use core::ops::Range;
+use core::iter::FromIterator;
+use core::ops::{BitAnd, BitOr, Range};
 use core::prelude::v1::*;
 
 #[cfg(feature = "serde1")]
@@ -13,6 +13,12 @@ use serde::{
 };
 
 use crate::RangeMap;
+
+/// Intersection iterator over two [`RangeSet`].
+pub type Intersection<'a, T> = crate::operations::Intersection<'a, Range<T>, Iter<'a, T>>;
+
+/// Union iterator over two [`RangeSet`].
+pub type Union<'a, T> = crate::operations::Union<'a, Range<T>, Iter<'a, T>>;
 
 #[derive(Clone, Hash, Default, Eq, PartialEq, PartialOrd, Ord)]
 /// A set whose items are stored as (half-open) ranges bounded
@@ -76,6 +82,16 @@ where
     /// Returns true if the set contains no elements.
     pub fn is_empty(&self) -> bool {
         self.rm.is_empty()
+    }
+
+    /// Return an iterator over the intersection of two range sets.
+    pub fn intersection<'a>(&'a self, other: &'a Self) -> Intersection<'a, T> {
+        Intersection::new(self.iter(), other.iter())
+    }
+
+    /// Return an iterator over the union of two range sets.
+    pub fn union<'a>(&'a self, other: &'a Self) -> Union<'a, T> {
+        Union::new(self.iter(), other.iter())
     }
 
     /// Insert a range into the set.
@@ -378,6 +394,22 @@ where
     }
 }
 
+impl<T: Ord + Clone> BitAnd for &RangeSet<T> {
+    type Output = RangeSet<T>;
+
+    fn bitand(self, other: Self) -> Self::Output {
+        self.intersection(other).collect()
+    }
+}
+
+impl<T: Ord + Clone> BitOr for &RangeSet<T> {
+    type Output = RangeSet<T>;
+
+    fn bitor(self, other: Self) -> Self::Output {
+        self.union(other).collect()
+    }
+}
+
 impl<T: Ord + Clone, const N: usize> From<[Range<T>; N]> for RangeSet<T> {
     fn from(value: [Range<T>; N]) -> Self {
         let mut set = Self::new();
@@ -459,12 +491,17 @@ mod tests {
         assert_eq!(forward, backward);
     }
 
-    #[proptest]
-    fn test_arbitrary_set_u8(ranges: Vec<Range<u8>>) {
-        let ranges: Vec<_> = ranges
+    // neccessary due to assertion on empty ranges
+    fn filter_ranges<T: Ord>(ranges: Vec<Range<T>>) -> Vec<Range<T>> {
+        ranges
             .into_iter()
             .filter(|range| range.start != range.end)
-            .collect();
+            .collect()
+    }
+
+    #[proptest]
+    fn test_arbitrary_set_u8(ranges: Vec<Range<u8>>) {
+        let ranges = filter_ranges(ranges);
         let set = ranges.iter().fold(RangeSet::new(), |mut set, range| {
             set.insert(range.clone());
             set
@@ -492,6 +529,63 @@ mod tests {
             range_set![0..100, 200..300, 400..500],
             [0..100, 200..300, 400..500].iter().cloned().collect(),
         );
+    }
+
+    #[proptest]
+    fn test_union_overlaps_u8(left: Vec<Range<u8>>, right: Vec<Range<u8>>) {
+        let left: RangeSet<_> = filter_ranges(left).into_iter().collect();
+        let right: RangeSet<_> = filter_ranges(right).into_iter().collect();
+
+        let mut union = RangeSet::new();
+        for range in left.union(&right) {
+            // there should not be any overlaps in the ranges returned by the union
+            assert!(union.overlapping(&range).next().is_none());
+            union.insert(range);
+        }
+    }
+
+    #[proptest]
+    fn test_union_contains_u8(left: Vec<Range<u8>>, right: Vec<Range<u8>>) {
+        let left: RangeSet<_> = filter_ranges(left).into_iter().collect();
+        let right: RangeSet<_> = filter_ranges(right).into_iter().collect();
+        let union: RangeSet<_> = left.union(&right).collect();
+
+        // value should be in the union if and only if it is in either set
+        for value in 0..u8::MAX {
+            assert_eq!(
+                union.contains(&value),
+                left.contains(&value) || right.contains(&value)
+            );
+        }
+    }
+
+    #[proptest]
+    fn test_intersection_contains_u8(left: Vec<Range<u8>>, right: Vec<Range<u8>>) {
+        let left: RangeSet<_> = filter_ranges(left).into_iter().collect();
+        let right: RangeSet<_> = filter_ranges(right).into_iter().collect();
+        let union: RangeSet<_> = left.intersection(&right).collect();
+
+        // value should be in the union if and only if it is in either set
+        for value in 0..u8::MAX {
+            assert_eq!(
+                union.contains(&value),
+                left.contains(&value) && right.contains(&value)
+            );
+        }
+    }
+
+    #[proptest]
+    fn test_intersection_overlaps_u8(left: Vec<Range<u8>>, right: Vec<Range<u8>>) {
+        let left: RangeSet<_> = filter_ranges(left).into_iter().collect();
+        let right: RangeSet<_> = filter_ranges(right).into_iter().collect();
+
+        let mut union = RangeSet::new();
+        for range in left.intersection(&right) {
+            // there should not be any overlaps in the ranges returned by the
+            // intersection
+            assert!(union.overlapping(&range).next().is_none());
+            union.insert(range);
+        }
     }
 
     trait RangeSetExt<T> {

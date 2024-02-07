@@ -1,7 +1,7 @@
 use core::borrow::Borrow;
 use core::fmt::{self, Debug};
 use core::iter::{DoubleEndedIterator, FromIterator};
-use core::ops::RangeInclusive;
+use core::ops::{BitAnd, BitOr, RangeInclusive};
 
 #[cfg(feature = "serde1")]
 use core::marker::PhantomData;
@@ -13,6 +13,12 @@ use serde::{
 
 use crate::std_ext::*;
 use crate::RangeInclusiveMap;
+
+/// Intersection iterator over two [`RangeInclusiveSet`].
+pub type Intersection<'a, T> = crate::operations::Intersection<'a, RangeInclusive<T>, Iter<'a, T>>;
+
+/// Union iterator over two [`RangeInclusiveSet`].
+pub type Union<'a, T> = crate::operations::Union<'a, RangeInclusive<T>, Iter<'a, T>>;
 
 #[derive(Clone, Hash, Default, Eq, PartialEq, PartialOrd, Ord)]
 /// A set whose items are stored as ranges bounded
@@ -171,6 +177,16 @@ where
     /// set.
     pub fn last(&self) -> Option<&RangeInclusive<T>> {
         self.rm.last_range_value().map(|(range, _)| range)
+    }
+
+    /// Return an iterator over the union of two range sets.
+    pub fn union<'a>(&'a self, other: &'a Self) -> Union<'a, T> {
+        Union::new(self.iter(), other.iter())
+    }
+
+    /// Return an iterator over the intersection of two range sets.
+    pub fn intersection<'a>(&'a self, other: &'a Self) -> Intersection<'a, T> {
+        Intersection::new(self.iter(), other.iter())
     }
 }
 
@@ -437,6 +453,22 @@ macro_rules! range_inclusive_set {
     }};
 }
 
+impl<T: Ord + Clone + StepLite> BitAnd for &RangeInclusiveSet<T> {
+    type Output = RangeInclusiveSet<T>;
+
+    fn bitand(self, other: Self) -> Self::Output {
+        self.intersection(other).collect()
+    }
+}
+
+impl<T: Ord + Clone + StepLite> BitOr for &RangeInclusiveSet<T> {
+    type Output = RangeInclusiveSet<T>;
+
+    fn bitor(self, other: Self) -> Self::Output {
+        self.union(other).collect()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -493,12 +525,17 @@ mod tests {
         assert_eq!(forward, backward);
     }
 
-    #[proptest]
-    fn test_arbitrary_set_u8(ranges: Vec<RangeInclusive<u8>>) {
-        let ranges: Vec<_> = ranges
+    // neccessary due to assertion on empty ranges
+    fn filter_ranges<T: Ord>(ranges: Vec<RangeInclusive<T>>) -> Vec<RangeInclusive<T>> {
+        ranges
             .into_iter()
             .filter(|range| range.start() != range.end())
-            .collect();
+            .collect()
+    }
+
+    #[proptest]
+    fn test_arbitrary_set_u8(ranges: Vec<RangeInclusive<u8>>) {
+        let ranges: Vec<_> = filter_ranges(ranges);
         let set = ranges
             .iter()
             .fold(RangeInclusiveSet::new(), |mut set, range| {
@@ -528,6 +565,69 @@ mod tests {
             range_inclusive_set![0..=100, 200..=300, 400..=500],
             [0..=100, 200..=300, 400..=500].iter().cloned().collect(),
         );
+    }
+
+    #[proptest]
+    fn test_union_overlaps_u8(left: Vec<RangeInclusive<u8>>, right: Vec<RangeInclusive<u8>>) {
+        let left: RangeInclusiveSet<_> = filter_ranges(left).into_iter().collect();
+        let right: RangeInclusiveSet<_> = filter_ranges(right).into_iter().collect();
+
+        let mut union = RangeInclusiveSet::new();
+        for range in left.union(&right) {
+            // there should not be any overlaps in the ranges returned by the union
+            assert!(union.overlapping(&range).next().is_none());
+            union.insert(range);
+        }
+    }
+
+    #[proptest]
+    fn test_union_contains_u8(left: Vec<RangeInclusive<u8>>, right: Vec<RangeInclusive<u8>>) {
+        let left: RangeInclusiveSet<_> = filter_ranges(left).into_iter().collect();
+        let right: RangeInclusiveSet<_> = filter_ranges(right).into_iter().collect();
+        let union: RangeInclusiveSet<_> = left.union(&right).collect();
+
+        // value should be in the union if and only if it is in either set
+        for value in 0..u8::MAX {
+            assert_eq!(
+                union.contains(&value),
+                left.contains(&value) || right.contains(&value)
+            );
+        }
+    }
+
+    #[proptest]
+    fn test_intersection_contains_u8(
+        left: Vec<RangeInclusive<u8>>,
+        right: Vec<RangeInclusive<u8>>,
+    ) {
+        let left: RangeInclusiveSet<_> = filter_ranges(left).into_iter().collect();
+        let right: RangeInclusiveSet<_> = filter_ranges(right).into_iter().collect();
+        let union: RangeInclusiveSet<_> = left.intersection(&right).collect();
+
+        // value should be in the union if and only if it is in either set
+        for value in 0..u8::MAX {
+            assert_eq!(
+                union.contains(&value),
+                left.contains(&value) && right.contains(&value)
+            );
+        }
+    }
+
+    #[proptest]
+    fn test_intersection_overlaps_u8(
+        left: Vec<RangeInclusive<u8>>,
+        right: Vec<RangeInclusive<u8>>,
+    ) {
+        let left: RangeInclusiveSet<_> = filter_ranges(left).into_iter().collect();
+        let right: RangeInclusiveSet<_> = filter_ranges(right).into_iter().collect();
+
+        let mut union = RangeInclusiveSet::new();
+        for range in left.intersection(&right) {
+            // there should not be any overlaps in the ranges returned by the
+            // intersection
+            assert!(union.overlapping(&range).next().is_none());
+            union.insert(range);
+        }
     }
 
     trait RangeInclusiveSetExt<T> {
