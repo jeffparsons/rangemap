@@ -615,7 +615,7 @@ mod tests {
     fn test_intersection_contains_u8(left: RangeSet<u8>, right: RangeSet<u8>) {
         let intersection = (&left) & (&right);
 
-        // value should be in the union if and only if it is in either set
+        // value should be in the intersection if and only if it is in both sets
         for value in 0..u8::MAX {
             assert_eq!(
                 intersection.contains(&value),
