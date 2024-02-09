@@ -1,8 +1,22 @@
-### v1.5.0 (unreleased)
+### v1.5.0 (2024-02-09) "xfbs rampage edition"
+
+Huge thanks to [xfbs](https://github.com/xfbs), who did pretty much all the work you see in the changelog below! 💖
+
+- **Features**:
+    - Add `union` and `intersection` methods to iterate over the union or intersection of two sets.
+    - Add `first_range_value` and `last_range_value` methods to map types and `first` and `last` methods to set types.
+    - Add literal macros for all collection types — e.g. `range_set![0..100, 200..300, 400..500]`.
+    - Implement `Default` and `Hash` for all collection types.
+    - Implement `DoubleEndedIterator` for all iterators.
+    - Implement `From<[_; N]>` (e.g. `From<[Range<T>; N]> for RangeSet<T>`) for all collections. (Previously you could build a collection from an iterator, but not directly from an array.)
+    - Implement `BitOr` and `BitAnd` for set types. (Convenience wrapper around the `union` and `intersection` methods mentioned above.)
+    - Accept any `R: Borrow<Range<K>>` as argument to `overlapping` methods, allowing it to take ranges by value.
 
 - **Changes**:
     - Bump minimum supported Rust version to 1.66.0 (released 2022-12-15). This is to gain access to `BTreeMap::first_key_value` and `BTreeMap::last_key_value`, and for compatibility with new versions of some of rangemap's test dependencies.
-    - TODO: All of xfbs's PRs!
+
+- **Internal**:
+    - New benchmarks and improved test coverage.
 
 ### v1.4.0 (2023-09-19)
 
