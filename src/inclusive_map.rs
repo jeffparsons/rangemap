@@ -959,6 +959,7 @@ mod tests {
     }
 
     #[proptest]
+    #[allow(clippy::len_zero)]
     fn test_len(mut map: RangeInclusiveMap<u64, String>) {
         assert_eq!(map.len(), map.iter().count());
         assert_eq!(map.is_empty(), map.len() == 0);
