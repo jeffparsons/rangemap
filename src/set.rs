@@ -20,7 +20,7 @@ pub type Intersection<'a, T> = crate::operations::Intersection<'a, Range<T>, Ite
 /// Union iterator over two [`RangeSet`].
 pub type Union<'a, T> = crate::operations::Union<'a, Range<T>, Iter<'a, T>>;
 
-#[derive(Clone, Hash, Default, Eq, PartialEq, PartialOrd, Ord)]
+#[derive(Clone, Hash, Eq, PartialEq, PartialOrd, Ord)]
 /// A set whose items are stored as (half-open) ranges bounded
 /// inclusively below and exclusively above `(start..end)`.
 ///
@@ -29,6 +29,14 @@ pub type Union<'a, T> = crate::operations::Union<'a, Range<T>, Iter<'a, T>>;
 /// [`RangeMap`]: struct.RangeMap.html
 pub struct RangeSet<T> {
     rm: RangeMap<T, ()>,
+}
+
+impl<T> Default for RangeSet<T> {
+    fn default() -> Self {
+        Self {
+            rm: RangeMap::default(),
+        }
+    }
 }
 
 impl<T> RangeSet<T>
@@ -744,6 +752,14 @@ mod tests {
         set.insert(7..8);
         set.insert(10..11);
         assert_eq!(format!("{:?}", set), "{2..5, 7..8, 10..11}");
+    }
+
+    // impl Default where T: ?Default
+
+    #[test]
+    fn always_default() {
+        struct NoDefault;
+        RangeSet::<NoDefault>::default();
     }
 
     // impl Serialize

@@ -20,7 +20,7 @@ pub type Intersection<'a, T> = crate::operations::Intersection<'a, RangeInclusiv
 /// Union iterator over two [`RangeInclusiveSet`].
 pub type Union<'a, T> = crate::operations::Union<'a, RangeInclusive<T>, Iter<'a, T>>;
 
-#[derive(Clone, Hash, Default, Eq, PartialEq, PartialOrd, Ord)]
+#[derive(Clone, Hash, Eq, PartialEq, PartialOrd, Ord)]
 /// A set whose items are stored as ranges bounded
 /// inclusively below and above `(start..=end)`.
 ///
@@ -29,6 +29,14 @@ pub type Union<'a, T> = crate::operations::Union<'a, RangeInclusive<T>, Iter<'a,
 /// [`RangeInclusiveMap`]: struct.RangeInclusiveMap.html
 pub struct RangeInclusiveSet<T, StepFnsT = T> {
     rm: RangeInclusiveMap<T, (), StepFnsT>,
+}
+
+impl<T, StepFnsT> Default for RangeInclusiveSet<T, StepFnsT> {
+    fn default() -> Self {
+        Self {
+            rm: RangeInclusiveMap::default(),
+        }
+    }
 }
 
 impl<T> RangeInclusiveSet<T, T>
@@ -775,6 +783,14 @@ mod tests {
         set.insert(7..=8);
         set.insert(10..=11);
         assert_eq!(format!("{:?}", set), "{2..=5, 7..=8, 10..=11}");
+    }
+
+    // impl Default where T: ?Default
+
+    #[test]
+    fn always_default() {
+        struct NoDefault;
+        RangeInclusiveSet::<NoDefault>::default();
     }
 
     // impl Serialize
