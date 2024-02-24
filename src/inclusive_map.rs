@@ -34,12 +34,21 @@ use serde::{
 /// you can provide equivalent free functions using the `StepFnsT` type parameter.
 /// [`StepLite`] is implemented for all standard integer types,
 /// but not for any third party crate types.
-#[derive(Clone, Default)]
+#[derive(Clone)]
 pub struct RangeInclusiveMap<K, V, StepFnsT = K> {
     // Wrap ranges so that they are `Ord`.
     // See `range_wrapper.rs` for explanation.
     pub(crate) btm: BTreeMap<RangeInclusiveStartWrapper<K>, V>,
     _phantom: PhantomData<StepFnsT>,
+}
+
+impl<K, V, StepFnsT> Default for RangeInclusiveMap<K, V, StepFnsT> {
+    fn default() -> Self {
+        Self {
+            btm: BTreeMap::default(),
+            _phantom: PhantomData,
+        }
+    }
 }
 
 impl<K, V, StepFnsT> Hash for RangeInclusiveMap<K, V, StepFnsT>
@@ -1867,6 +1876,14 @@ mod tests {
         map.insert(7..=8, ());
         map.insert(10..=11, ());
         assert_eq!(format!("{:?}", map), "{2..=5: (), 7..=8: (), 10..=11: ()}");
+    }
+
+    // impl Default where T: ?Default
+
+    #[test]
+    fn always_default() {
+        struct NoDefault;
+        RangeInclusiveMap::<NoDefault, NoDefault>::default();
     }
 
     // impl Serialize

@@ -23,11 +23,19 @@ use serde::{
 ///
 /// Contiguous and overlapping ranges that map to the same value
 /// are coalesced into a single range.
-#[derive(Clone, Default, Eq)]
+#[derive(Clone, Eq)]
 pub struct RangeMap<K, V> {
     // Wrap ranges so that they are `Ord`.
     // See `range_wrapper.rs` for explanation.
     pub(crate) btm: BTreeMap<RangeStartWrapper<K>, V>,
+}
+
+impl<K, V> Default for RangeMap<K, V> {
+    fn default() -> Self {
+        Self {
+            btm: BTreeMap::default(),
+        }
+    }
 }
 
 impl<K, V> Hash for RangeMap<K, V>
@@ -1700,6 +1708,14 @@ mod tests {
         map.insert(6..7, ());
         map.insert(8..9, ());
         assert_eq!(format!("{:?}", map), "{2..5: (), 6..7: (), 8..9: ()}");
+    }
+
+    // impl Default where T: ?Default
+
+    #[test]
+    fn always_default() {
+        struct NoDefault;
+        RangeMap::<NoDefault, NoDefault>::default();
     }
 
     // Iterator Tests
