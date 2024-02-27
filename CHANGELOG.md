@@ -1,3 +1,9 @@
+### v1.5.1 (2024-02-27)
+
+- **Fixes**:
+    - Relax bounds on `Default` implementation for all map and set types. Requiring `K: Default` and `V: Default` was accidentally introduced in v1.5.0.
+
+
 ### v1.5.0 (2024-02-09) "xfbs rampage edition"
 
 Huge thanks to [xfbs](https://github.com/xfbs), who did pretty much all the work you see in the changelog below! 💖
