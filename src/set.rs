@@ -26,7 +26,7 @@ pub type Union<'a, T> = crate::operations::Union<'a, Range<T>, Iter<'a, T>>;
 ///
 /// See [`RangeMap`]'s documentation for more details.
 ///
-/// [`RangeMap`]: struct.RangeMap.html
+/// [`RangeMap`]: crate::RangeMap
 pub struct RangeSet<T> {
     rm: RangeMap<T, ()>,
 }
