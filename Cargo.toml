@@ -17,6 +17,7 @@ categories = ["data-structures"]
 rust-version = "1.66.0"
 
 [dependencies]
+quickcheck = { version = "1.0.3", optional = true }
 serde = { version = "1", optional = true }
 
 [dev-dependencies]
@@ -42,6 +43,7 @@ nightly = []
 # Requires a nightly compiler because `const_btree_new` is an unstable feature,
 # but is soon to be stabilized: <https://github.com/rust-lang/rust/issues/71835>
 const_fn = []
+quickcheck = ["dep:quickcheck"]
 
 [[bench]]
 name = "benches"
