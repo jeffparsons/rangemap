@@ -39,6 +39,18 @@ impl<T, StepFnsT> Default for RangeInclusiveSet<T, StepFnsT> {
     }
 }
 
+#[cfg(feature = "quickcheck")]
+impl<K> quickcheck::Arbitrary for RangeInclusiveSet<K>
+where
+    K: quickcheck::Arbitrary + Ord + StepLite,
+{
+    fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+        Self {
+            rm: RangeInclusiveMap::arbitrary(g),
+        }
+    }
+}
+
 impl<T> RangeInclusiveSet<T, T>
 where
     T: Ord + Clone + StepLite,
@@ -827,4 +839,11 @@ mod tests {
     const _SET: RangeInclusiveSet<u32> = RangeInclusiveSet::new();
     #[cfg(feature = "const_fn")]
     const _SET2: RangeInclusiveSet<u32> = RangeInclusiveSet::new_with_step_fns();
+
+    #[cfg(feature = "quickcheck")]
+    quickcheck::quickcheck! {
+        fn prop(xs: RangeInclusiveSet<usize, usize>) -> bool {
+            xs == xs
+        }
+    }
 }
