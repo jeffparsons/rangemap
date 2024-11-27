@@ -90,6 +90,7 @@ where
     V: quickcheck::Arbitrary + Eq,
 {
     fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+        // REVISIT: allocation could be avoided if Gen::gen_size were public (https://github.com/BurntSushi/quickcheck/issues/326#issue-2653601170)
         <alloc::vec::Vec<(Range<_>, _)>>::arbitrary(g)
             .into_iter()
             .filter(|(range, _)| !range.is_empty())
