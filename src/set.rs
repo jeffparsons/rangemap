@@ -39,6 +39,18 @@ impl<T> Default for RangeSet<T> {
     }
 }
 
+#[cfg(feature = "quickcheck")]
+impl<K> quickcheck::Arbitrary for RangeSet<K>
+where
+    K: quickcheck::Arbitrary + Ord,
+{
+    fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+        Self {
+            rm: RangeMap::arbitrary(g),
+        }
+    }
+}
+
 impl<T> RangeSet<T>
 where
     T: Ord + Clone,
@@ -793,4 +805,11 @@ mod tests {
 
     #[cfg(feature = "const_fn")]
     const _SET: RangeSet<u32> = RangeSet::new();
+
+    #[cfg(feature = "quickcheck")]
+    quickcheck::quickcheck! {
+        fn prop(xs: RangeSet<usize>) -> bool {
+            xs == xs
+        }
+    }
 }

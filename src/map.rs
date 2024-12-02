@@ -83,6 +83,21 @@ where
     }
 }
 
+#[cfg(feature = "quickcheck")]
+impl<K, V> quickcheck::Arbitrary for RangeMap<K, V>
+where
+    K: quickcheck::Arbitrary + Ord,
+    V: quickcheck::Arbitrary + Eq,
+{
+    fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+        // REVISIT: allocation could be avoided if Gen::gen_size were public (https://github.com/BurntSushi/quickcheck/issues/326#issue-2653601170)
+        <alloc::vec::Vec<(Range<_>, _)>>::arbitrary(g)
+            .into_iter()
+            .filter(|(range, _)| !range.is_empty())
+            .collect()
+    }
+}
+
 impl<K, V> RangeMap<K, V> {
     /// Makes a new empty `RangeMap`.
     #[cfg(feature = "const_fn")]
@@ -1818,4 +1833,11 @@ mod tests {
 
     #[cfg(feature = "const_fn")]
     const _MAP: RangeMap<u32, bool> = RangeMap::new();
+
+    #[cfg(feature = "quickcheck")]
+    quickcheck::quickcheck! {
+        fn prop(xs: RangeMap<usize, usize>) -> bool {
+            xs == xs
+        }
+    }
 }

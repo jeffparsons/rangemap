@@ -103,6 +103,21 @@ where
     }
 }
 
+#[cfg(feature = "quickcheck")]
+impl<K, V> quickcheck::Arbitrary for RangeInclusiveMap<K, V>
+where
+    K: quickcheck::Arbitrary + Ord + StepLite,
+    V: quickcheck::Arbitrary + Eq,
+{
+    fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+        // REVISIT: allocation could be avoided if Gen::gen_size were public (https://github.com/BurntSushi/quickcheck/issues/326#issue-2653601170)
+        <alloc::vec::Vec<(RangeInclusive<_>, _)>>::arbitrary(g)
+            .into_iter()
+            .filter(|(range, _)| !range.is_empty())
+            .collect()
+    }
+}
+
 impl<K, V, StepFnsT> RangeInclusiveMap<K, V, StepFnsT> {
     /// Gets an iterator over all pairs of key range and value,
     /// ordered by key range.
@@ -1920,4 +1935,11 @@ mod tests {
     const _MAP: RangeInclusiveMap<u32, bool> = RangeInclusiveMap::new();
     #[cfg(feature = "const_fn")]
     const _MAP2: RangeInclusiveMap<u32, bool> = RangeInclusiveMap::new_with_step_fns();
+
+    #[cfg(feature = "quickcheck")]
+    quickcheck::quickcheck! {
+        fn prop(xs: RangeInclusiveMap<usize, usize>) -> bool {
+            xs == xs
+        }
+    }
 }
