@@ -244,14 +244,10 @@ where
     pub fn insert(&mut self, range: RangeInclusive<K>, value: V) {
         use core::ops::Bound;
 
-        // Backwards ranges don't make sense.
-        // `RangeInclusive` doesn't enforce this,
-        // and we don't want weird explosions further down
-        // if someone gives us such a range.
-        assert!(
-            range.start() <= range.end(),
-            "Range start can not be after range end"
-        );
+        // A range where start > end is empty..
+        if range.start() > range.end() {
+            return;
+        }
 
         // Wrap up the given range so that we can "borrow"
         // it as a wrapper reference to either its start or end.
