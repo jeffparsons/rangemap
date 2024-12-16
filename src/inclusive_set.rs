@@ -1,7 +1,7 @@
-use core::cmp::Ordering;
+use core::borrow::Borrow;
 use core::fmt::{self, Debug};
-use core::iter::FromIterator;
-use core::ops::RangeInclusive;
+use core::iter::{DoubleEndedIterator, FromIterator};
+use core::ops::{BitAnd, BitOr, RangeInclusive};
 
 #[cfg(feature = "serde1")]
 use core::marker::PhantomData;
@@ -14,7 +14,13 @@ use serde::{
 use crate::std_ext::*;
 use crate::RangeInclusiveMap;
 
-#[derive(Clone)]
+/// Intersection iterator over two [`RangeInclusiveSet`].
+pub type Intersection<'a, T> = crate::operations::Intersection<'a, RangeInclusive<T>, Iter<'a, T>>;
+
+/// Union iterator over two [`RangeInclusiveSet`].
+pub type Union<'a, T> = crate::operations::Union<'a, RangeInclusive<T>, Iter<'a, T>>;
+
+#[derive(Clone, Hash, Eq, PartialEq, PartialOrd, Ord)]
 /// A set whose items are stored as ranges bounded
 /// inclusively below and above `(start..=end)`.
 ///
@@ -25,43 +31,23 @@ pub struct RangeInclusiveSet<T, StepFnsT = T> {
     rm: RangeInclusiveMap<T, (), StepFnsT>,
 }
 
-impl<T> Default for RangeInclusiveSet<T, T>
-where
-    T: Ord + Clone + StepLite,
-{
+impl<T, StepFnsT> Default for RangeInclusiveSet<T, StepFnsT> {
     fn default() -> Self {
-        Self::new()
+        Self {
+            rm: RangeInclusiveMap::default(),
+        }
     }
 }
 
-impl<T> PartialEq for RangeInclusiveSet<T, T>
+#[cfg(feature = "quickcheck")]
+impl<K> quickcheck::Arbitrary for RangeInclusiveSet<K>
 where
-    T: PartialEq,
+    K: quickcheck::Arbitrary + Ord + StepLite,
 {
-    fn eq(&self, other: &RangeInclusiveSet<T, T>) -> bool {
-        self.rm == other.rm
-    }
-}
-
-impl<T> Eq for RangeInclusiveSet<T, T> where T: Eq {}
-
-impl<T> PartialOrd for RangeInclusiveSet<T, T>
-where
-    T: PartialOrd,
-{
-    #[inline]
-    fn partial_cmp(&self, other: &RangeInclusiveSet<T, T>) -> Option<Ordering> {
-        self.rm.partial_cmp(&other.rm)
-    }
-}
-
-impl<T> Ord for RangeInclusiveSet<T, T>
-where
-    T: Ord,
-{
-    #[inline]
-    fn cmp(&self, other: &RangeInclusiveSet<T, T>) -> Ordering {
-        self.rm.cmp(&other.rm)
+    fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+        Self {
+            rm: RangeInclusiveMap::arbitrary(g),
+        }
     }
 }
 
@@ -189,7 +175,7 @@ where
     /// either partially or completely overlapped by the given range.
     ///
     /// The iterator element type is `RangeInclusive<T>`.
-    pub fn overlapping<'a>(&'a self, range: &'a RangeInclusive<T>) -> Overlapping<T> {
+    pub fn overlapping<R: Borrow<RangeInclusive<T>>>(&self, range: R) -> Overlapping<T, R> {
         Overlapping {
             inner: self.rm.overlapping(range),
         }
@@ -199,6 +185,28 @@ where
     /// overlaps the given range.
     pub fn overlaps(&self, range: &RangeInclusive<T>) -> bool {
         self.overlapping(range).next().is_some()
+    }
+
+    /// Returns the first range in the set, if one exists. The range is the minimum range in this
+    /// set.
+    pub fn first(&self) -> Option<&RangeInclusive<T>> {
+        self.rm.first_range_value().map(|(range, _)| range)
+    }
+
+    /// Returns the last range in the set, if one exists. The range is the maximum range in this
+    /// set.
+    pub fn last(&self) -> Option<&RangeInclusive<T>> {
+        self.rm.last_range_value().map(|(range, _)| range)
+    }
+
+    /// Return an iterator over the union of two range sets.
+    pub fn union<'a>(&'a self, other: &'a Self) -> Union<'a, T> {
+        Union::new(self.iter(), other.iter())
+    }
+
+    /// Return an iterator over the intersection of two range sets.
+    pub fn intersection<'a>(&'a self, other: &'a Self) -> Intersection<'a, T> {
+        Intersection::new(self.iter(), other.iter())
     }
 }
 
@@ -215,12 +223,21 @@ pub struct Iter<'a, T> {
 impl<'a, T> Iterator for Iter<'a, T> {
     type Item = &'a RangeInclusive<T>;
 
-    fn next(&mut self) -> Option<&'a RangeInclusive<T>> {
+    fn next(&mut self) -> Option<Self::Item> {
         self.inner.next().map(|(range, _)| range)
     }
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.inner.size_hint()
+    }
+}
+
+impl<'a, K> DoubleEndedIterator for Iter<'a, K>
+where
+    K: 'a,
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.inner.next_back().map(|(range, _)| range)
     }
 }
 
@@ -251,6 +268,12 @@ impl<T> Iterator for IntoIter<T> {
     }
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.inner.size_hint()
+    }
+}
+
+impl<K> DoubleEndedIterator for IntoIter<K> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.inner.next_back().map(|(range, _)| range)
     }
 }
 
@@ -393,14 +416,17 @@ where
 /// documentation for more.
 ///
 /// [`overlapping`]: RangeInclusiveSet::overlapping
-pub struct Overlapping<'a, T> {
-    inner: crate::inclusive_map::Overlapping<'a, T, ()>,
+pub struct Overlapping<'a, T, R: Borrow<RangeInclusive<T>> = &'a RangeInclusive<T>> {
+    inner: crate::inclusive_map::Overlapping<'a, T, (), R>,
 }
 
 // `Overlapping` is always fused. (See definition of `next` below.)
-impl<'a, T> core::iter::FusedIterator for Overlapping<'a, T> where T: Ord + Clone {}
+impl<'a, T, R: Borrow<RangeInclusive<T>>> core::iter::FusedIterator for Overlapping<'a, T, R> where
+    T: Ord + Clone
+{
+}
 
-impl<'a, T> Iterator for Overlapping<'a, T>
+impl<'a, T, R: Borrow<RangeInclusive<T>>> Iterator for Overlapping<'a, T, R>
 where
     T: Ord + Clone,
 {
@@ -411,10 +437,255 @@ where
     }
 }
 
+impl<'a, T, R: Borrow<RangeInclusive<T>>> DoubleEndedIterator for Overlapping<'a, T, R>
+where
+    T: Ord + Clone,
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.inner.next_back().map(|(k, _v)| k)
+    }
+}
+
+impl<T: Ord + Clone + StepLite, const N: usize> From<[RangeInclusive<T>; N]>
+    for RangeInclusiveSet<T>
+{
+    fn from(value: [RangeInclusive<T>; N]) -> Self {
+        let mut set = Self::new();
+        for value in IntoIterator::into_iter(value) {
+            set.insert(value);
+        }
+        set
+    }
+}
+
+/// Create a [`RangeInclusiveSet`] from a list of ranges.
+///
+/// # Example
+///
+/// ```rust
+/// # use rangemap::range_inclusive_set;
+/// let set = range_inclusive_set![0..=100, 200..=300, 400..=500];
+/// ```
+#[macro_export]
+macro_rules! range_inclusive_set {
+    ($($range:expr),* $(,)?) => {{
+        $crate::RangeInclusiveSet::from([$($range),*])
+    }};
+}
+
+impl<T: Ord + Clone + StepLite> BitAnd for &RangeInclusiveSet<T> {
+    type Output = RangeInclusiveSet<T>;
+
+    fn bitand(self, other: Self) -> Self::Output {
+        self.intersection(other).collect()
+    }
+}
+
+impl<T: Ord + Clone + StepLite> BitOr for &RangeInclusiveSet<T> {
+    type Output = RangeInclusiveSet<T>;
+
+    fn bitor(self, other: Self) -> Self::Output {
+        self.union(other).collect()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+    use alloc as std;
     use alloc::{format, vec, vec::Vec};
+    use proptest::prelude::*;
+    use test_strategy::proptest;
+
+    impl<T> Arbitrary for RangeInclusiveSet<T>
+    where
+        T: Ord + Clone + StepLite + Debug + Arbitrary + 'static,
+    {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_parameters: Self::Parameters) -> Self::Strategy {
+            any::<Vec<RangeInclusive<T>>>()
+                .prop_map(|ranges| ranges.into_iter().collect::<RangeInclusiveSet<T>>())
+                .boxed()
+        }
+    }
+
+    #[proptest]
+    fn test_first(set: RangeInclusiveSet<u64>) {
+        assert_eq!(set.first(), set.iter().min_by_key(|range| range.start()));
+    }
+
+    #[proptest]
+    #[allow(clippy::len_zero)]
+    fn test_len(mut map: RangeInclusiveSet<u64>) {
+        assert_eq!(map.len(), map.iter().count());
+        assert_eq!(map.is_empty(), map.len() == 0);
+        map.clear();
+        assert_eq!(map.len(), 0);
+        assert!(map.is_empty());
+        assert_eq!(map.iter().count(), 0);
+    }
+
+    #[proptest]
+    fn test_last(set: RangeInclusiveSet<u64>) {
+        assert_eq!(set.last(), set.iter().max_by_key(|range| range.end()));
+    }
+
+    #[proptest]
+    fn test_iter_reversible(set: RangeInclusiveSet<u64>) {
+        let forward: Vec<_> = set.iter().collect();
+        let mut backward: Vec<_> = set.iter().rev().collect();
+        backward.reverse();
+        assert_eq!(forward, backward);
+    }
+
+    #[proptest]
+    fn test_into_iter_reversible(set: RangeInclusiveSet<u64>) {
+        let forward: Vec<_> = set.clone().into_iter().collect();
+        let mut backward: Vec<_> = set.into_iter().rev().collect();
+        backward.reverse();
+        assert_eq!(forward, backward);
+    }
+
+    #[proptest]
+    fn test_overlapping_reversible(set: RangeInclusiveSet<u64>, range: RangeInclusive<u64>) {
+        let forward: Vec<_> = set.overlapping(&range).collect();
+        let mut backward: Vec<_> = set.overlapping(&range).rev().collect();
+        backward.reverse();
+        assert_eq!(forward, backward);
+    }
+
+    // neccessary due to assertion on empty ranges
+    fn filter_ranges<T: Ord>(ranges: Vec<RangeInclusive<T>>) -> Vec<RangeInclusive<T>> {
+        ranges
+            .into_iter()
+            .filter(|range| range.start() != range.end())
+            .collect()
+    }
+
+    #[proptest]
+    fn test_arbitrary_set_u8(ranges: Vec<RangeInclusive<u8>>) {
+        let ranges: Vec<_> = filter_ranges(ranges);
+        let set = ranges
+            .iter()
+            .fold(RangeInclusiveSet::new(), |mut set, range| {
+                set.insert(range.clone());
+                set
+            });
+
+        for value in 0..u8::MAX {
+            assert_eq!(
+                set.contains(&value),
+                ranges.iter().any(|range| range.contains(&value))
+            );
+        }
+    }
+
+    #[proptest]
+    #[allow(deprecated)]
+    fn test_hash(left: RangeInclusiveSet<u64>, right: RangeInclusiveSet<u64>) {
+        use core::hash::{Hash, Hasher, SipHasher};
+
+        let hash = |set: &RangeInclusiveSet<_>| {
+            let mut hasher = SipHasher::new();
+            set.hash(&mut hasher);
+            hasher.finish()
+        };
+
+        if left == right {
+            assert!(
+                hash(&left) == hash(&right),
+                "if two values are equal, their hash must be equal"
+            );
+        }
+
+        // if the hashes are equal the values might not be the same (collision)
+        if hash(&left) != hash(&right) {
+            assert!(
+                left != right,
+                "if two value's hashes are not equal, they must not be equal"
+            );
+        }
+    }
+
+    #[proptest]
+    fn test_ord(left: RangeInclusiveSet<u64>, right: RangeInclusiveSet<u64>) {
+        assert_eq!(
+            left == right,
+            left.cmp(&right).is_eq(),
+            "ordering and equality must match"
+        );
+        assert_eq!(
+            left.cmp(&right),
+            left.partial_cmp(&right).unwrap(),
+            "ordering is total for ordered parameters"
+        );
+    }
+
+    #[test]
+    fn test_from_array() {
+        let mut set = RangeInclusiveSet::new();
+        set.insert(0..=100);
+        set.insert(200..=300);
+        assert_eq!(set, RangeInclusiveSet::from([0..=100, 200..=300]));
+    }
+
+    #[test]
+    fn test_macro() {
+        assert_eq!(range_inclusive_set![], RangeInclusiveSet::<i64>::default());
+        assert_eq!(
+            range_inclusive_set![0..=100, 200..=300, 400..=500],
+            [0..=100, 200..=300, 400..=500].iter().cloned().collect(),
+        );
+    }
+
+    #[proptest]
+    fn test_union_overlaps_u8(left: RangeInclusiveSet<u8>, right: RangeInclusiveSet<u8>) {
+        let mut union = RangeInclusiveSet::new();
+        for range in left.union(&right) {
+            // there should not be any overlaps in the ranges returned by the union
+            assert!(union.overlapping(&range).next().is_none());
+            union.insert(range);
+        }
+    }
+
+    #[proptest]
+    fn test_union_contains_u8(left: RangeInclusiveSet<u8>, right: RangeInclusiveSet<u8>) {
+        let union = (&left) | (&right);
+
+        // value should be in the union if and only if it is in either set
+        for value in 0..u8::MAX {
+            assert_eq!(
+                union.contains(&value),
+                left.contains(&value) || right.contains(&value)
+            );
+        }
+    }
+
+    #[proptest]
+    fn test_intersection_contains_u8(left: RangeInclusiveSet<u8>, right: RangeInclusiveSet<u8>) {
+        let intersection = (&left) & (&right);
+
+        // value should be in the intersection if and only if it is in both sets
+        for value in 0..u8::MAX {
+            assert_eq!(
+                intersection.contains(&value),
+                left.contains(&value) && right.contains(&value)
+            );
+        }
+    }
+
+    #[proptest]
+    fn test_intersection_overlaps_u8(left: RangeInclusiveSet<u8>, right: RangeInclusiveSet<u8>) {
+        let mut union = RangeInclusiveSet::new();
+        for range in left.intersection(&right) {
+            // there should not be any overlaps in the ranges returned by the
+            // intersection
+            assert!(union.overlapping(&range).next().is_none());
+            union.insert(range);
+        }
+    }
 
     trait RangeInclusiveSetExt<T> {
         fn to_vec(&self) -> Vec<RangeInclusive<T>>;
@@ -526,6 +797,14 @@ mod tests {
         assert_eq!(format!("{:?}", set), "{2..=5, 7..=8, 10..=11}");
     }
 
+    // impl Default where T: ?Default
+
+    #[test]
+    fn always_default() {
+        struct NoDefault;
+        RangeInclusiveSet::<NoDefault>::default();
+    }
+
     // impl Serialize
 
     #[cfg(feature = "serde1")]
@@ -560,4 +839,11 @@ mod tests {
     const _SET: RangeInclusiveSet<u32> = RangeInclusiveSet::new();
     #[cfg(feature = "const_fn")]
     const _SET2: RangeInclusiveSet<u32> = RangeInclusiveSet::new_with_step_fns();
+
+    #[cfg(feature = "quickcheck")]
+    quickcheck::quickcheck! {
+        fn prop(xs: RangeInclusiveSet<usize, usize>) -> bool {
+            xs == xs
+        }
+    }
 }

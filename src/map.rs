@@ -2,9 +2,11 @@ use super::range_wrapper::RangeStartWrapper;
 use crate::range_wrapper::RangeEndWrapper;
 use crate::std_ext::*;
 use alloc::collections::BTreeMap;
+use core::borrow::Borrow;
 use core::cmp::Ordering;
 use core::fmt::{self, Debug};
-use core::iter::FromIterator;
+use core::hash::Hash;
+use core::iter::{DoubleEndedIterator, FromIterator};
 use core::ops::{Bound, Range};
 use core::prelude::v1::*;
 
@@ -21,7 +23,7 @@ use serde::{
 ///
 /// Contiguous and overlapping ranges that map to the same value
 /// are coalesced into a single range.
-#[derive(Clone)]
+#[derive(Clone, Eq)]
 pub struct RangeMap<K, V> {
     // Wrap ranges so that they are `Ord`.
     // See `range_wrapper.rs` for explanation.
@@ -30,7 +32,22 @@ pub struct RangeMap<K, V> {
 
 impl<K, V> Default for RangeMap<K, V> {
     fn default() -> Self {
-        Self::new()
+        Self {
+            btm: BTreeMap::default(),
+        }
+    }
+}
+
+impl<K, V> Hash for RangeMap<K, V>
+where
+    K: Hash,
+    V: Hash,
+{
+    fn hash<H: core::hash::Hasher>(&self, state: &mut H) {
+        state.write_usize(self.btm.len());
+        for elt in self.iter() {
+            elt.hash(state);
+        }
     }
 }
 
@@ -40,7 +57,7 @@ where
     V: PartialEq,
 {
     fn eq(&self, other: &RangeMap<K, V>) -> bool {
-        self.btm == other.btm
+        self.iter().eq(other.iter())
     }
 }
 
@@ -51,7 +68,7 @@ where
 {
     #[inline]
     fn partial_cmp(&self, other: &RangeMap<K, V>) -> Option<Ordering> {
-        self.btm.partial_cmp(&other.btm)
+        self.expanded_iter().partial_cmp(other.expanded_iter())
     }
 }
 
@@ -62,15 +79,23 @@ where
 {
     #[inline]
     fn cmp(&self, other: &RangeMap<K, V>) -> Ordering {
-        self.btm.cmp(&other.btm)
+        self.expanded_iter().cmp(other.expanded_iter())
     }
 }
 
-impl<K, V> Eq for RangeMap<K, V>
+#[cfg(feature = "quickcheck")]
+impl<K, V> quickcheck::Arbitrary for RangeMap<K, V>
 where
-    K: Eq,
-    V: Eq,
+    K: quickcheck::Arbitrary + Ord,
+    V: quickcheck::Arbitrary + Eq,
 {
+    fn arbitrary(g: &mut quickcheck::Gen) -> Self {
+        // REVISIT: allocation could be avoided if Gen::gen_size were public (https://github.com/BurntSushi/quickcheck/issues/326#issue-2653601170)
+        <alloc::vec::Vec<(Range<_>, _)>>::arbitrary(g)
+            .into_iter()
+            .filter(|(range, _)| !range.is_empty())
+            .collect()
+    }
 }
 
 impl<K, V> RangeMap<K, V> {
@@ -113,6 +138,13 @@ impl<K, V> RangeMap<K, V> {
     /// Returns true if the map contains no elements.
     pub fn is_empty(&self) -> bool {
         self.btm.is_empty()
+    }
+
+    /// Returns an iterator that includes both ends of the key range.
+    ///
+    /// Mainly used for comparisons.
+    fn expanded_iter(&self) -> impl Iterator<Item = (&K, &K, &V)> {
+        self.btm.iter().map(|(k, v)| (&k.start, &k.end, v))
     }
 }
 
@@ -170,10 +202,11 @@ where
 
     /// Gets an iterator over all the stored ranges that are
     /// either partially or completely overlapped by the given range.
-    pub fn overlapping<'a>(&'a self, range: &'a Range<K>) -> Overlapping<K, V> {
+    pub fn overlapping<R: Borrow<Range<K>>>(&self, range: R) -> Overlapping<K, V, R> {
         // Find the first matching stored range by its _end_,
         // using sneaky layering and `Borrow` implementation. (See `range_wrappers` module.)
-        let start_sliver = RangeEndWrapper::new(range.start.clone()..range.start.clone());
+        let start_sliver =
+            RangeEndWrapper::new(range.borrow().start.clone()..range.borrow().start.clone());
         let btm_range_iter = self
             .btm
             .range::<RangeEndWrapper<K>, (Bound<&RangeEndWrapper<K>>, Bound<_>)>((
@@ -190,6 +223,22 @@ where
     /// overlaps the given range.
     pub fn overlaps(&self, range: &Range<K>) -> bool {
         self.overlapping(range).next().is_some()
+    }
+
+    /// Returns the first range-value pair in this map, if one exists. The range in this pair is the
+    /// minimum range in the map.
+    pub fn first_range_value(&self) -> Option<(&Range<K>, &V)> {
+        self.btm
+            .first_key_value()
+            .map(|(range, value)| (&range.end_wrapper.range, value))
+    }
+
+    /// Returns the last range-value pair in this map, if one exists. The range in this pair is the
+    /// maximum range in the map.
+    pub fn last_range_value(&self) -> Option<(&Range<K>, &V)> {
+        self.btm
+            .last_key_value()
+            .map(|(range, value)| (&range.end_wrapper.range, value))
     }
 }
 
@@ -486,7 +535,7 @@ where
 {
     type Item = (&'a Range<K>, &'a V);
 
-    fn next(&mut self) -> Option<(&'a Range<K>, &'a V)> {
+    fn next(&mut self) -> Option<Self::Item> {
         self.inner
             .next()
             .map(|(by_start, v)| (&by_start.end_wrapper.range, v))
@@ -494,6 +543,18 @@ where
 
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.inner.size_hint()
+    }
+}
+
+impl<'a, K, V> DoubleEndedIterator for Iter<'a, K, V>
+where
+    K: 'a,
+    V: 'a,
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.inner
+            .next_back()
+            .map(|(range, value)| (&range.end_wrapper.range, value))
     }
 }
 
@@ -528,6 +589,14 @@ impl<K, V> Iterator for IntoIter<K, V> {
     }
     fn size_hint(&self) -> (usize, Option<usize>) {
         self.inner.size_hint()
+    }
+}
+
+impl<K, V> DoubleEndedIterator for IntoIter<K, V> {
+    fn next_back(&mut self) -> Option<Self::Item> {
+        self.inner
+            .next_back()
+            .map(|(range, value)| (range.end_wrapper.range, value))
     }
 }
 
@@ -699,15 +768,18 @@ where
 /// documentation for more.
 ///
 /// [`overlapping`]: RangeMap::overlapping
-pub struct Overlapping<'a, K, V> {
-    query_range: &'a Range<K>,
+pub struct Overlapping<'a, K, V, R: Borrow<Range<K>> = &'a Range<K>> {
+    query_range: R,
     btm_range_iter: alloc::collections::btree_map::Range<'a, RangeStartWrapper<K>, V>,
 }
 
 // `Overlapping` is always fused. (See definition of `next` below.)
-impl<'a, K, V> core::iter::FusedIterator for Overlapping<'a, K, V> where K: Ord {}
+impl<'a, K, V, R: Borrow<Range<K>>> core::iter::FusedIterator for Overlapping<'a, K, V, R> where
+    K: Ord
+{
+}
 
-impl<'a, K, V> Iterator for Overlapping<'a, K, V>
+impl<'a, K, V, R: Borrow<Range<K>>> Iterator for Overlapping<'a, K, V, R>
 where
     K: Ord,
 {
@@ -715,7 +787,7 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         if let Some((k, v)) = self.btm_range_iter.next() {
-            if k.start < self.query_range.end {
+            if k.start < self.query_range.borrow().end {
                 Some((&k.range, v))
             } else {
                 // The rest of the items in the underlying iterator
@@ -730,10 +802,212 @@ where
     }
 }
 
+impl<'a, K, V, R: Borrow<Range<K>>> DoubleEndedIterator for Overlapping<'a, K, V, R>
+where
+    K: Ord,
+{
+    fn next_back(&mut self) -> Option<Self::Item> {
+        while let Some((k, v)) = self.btm_range_iter.next_back() {
+            if k.start < self.query_range.borrow().end {
+                return Some((&k.range, v));
+            }
+        }
+
+        None
+    }
+}
+
+impl<K: Ord + Clone, V: Eq + Clone, const N: usize> From<[(Range<K>, V); N]> for RangeMap<K, V> {
+    fn from(value: [(Range<K>, V); N]) -> Self {
+        let mut map = Self::new();
+        for (range, value) in IntoIterator::into_iter(value) {
+            map.insert(range, value);
+        }
+        map
+    }
+}
+
+/// Create a [`RangeMap`] from key-value pairs.
+///
+/// # Example
+///
+/// ```rust
+/// # use rangemap::range_map;
+/// let map = range_map!{
+///     0..100 => "abc",
+///     100..200 => "def",
+///     200..300 => "ghi"
+/// };
+/// ```
+#[macro_export]
+macro_rules! range_map {
+    ($($k:expr => $v:expr),* $(,)?) => {{
+        $crate::RangeMap::from([$(($k, $v)),*])
+    }};
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-    use alloc::{format, vec, vec::Vec};
+    use alloc as std;
+    use alloc::{format, string::String, vec, vec::Vec};
+    use proptest::prelude::*;
+    use test_strategy::proptest;
+
+    impl<K, V> Arbitrary for RangeMap<K, V>
+    where
+        K: Ord + Clone + Debug + Arbitrary + 'static,
+        V: Clone + Eq + Arbitrary + 'static,
+    {
+        type Parameters = ();
+        type Strategy = BoxedStrategy<Self>;
+
+        fn arbitrary_with(_parameters: Self::Parameters) -> Self::Strategy {
+            any::<Vec<(Range<K>, V)>>()
+                .prop_map(|ranges| ranges.into_iter().collect::<RangeMap<K, V>>())
+                .boxed()
+        }
+    }
+
+    #[proptest]
+    fn test_first(set: RangeMap<u64, String>) {
+        assert_eq!(
+            set.first_range_value(),
+            set.iter().min_by_key(|(range, _)| range.start)
+        );
+    }
+
+    #[proptest]
+    #[allow(clippy::len_zero)]
+    fn test_len(mut map: RangeMap<u64, String>) {
+        assert_eq!(map.len(), map.iter().count());
+        assert_eq!(map.is_empty(), map.len() == 0);
+        map.clear();
+        assert_eq!(map.len(), 0);
+        assert!(map.is_empty());
+        assert_eq!(map.iter().count(), 0);
+    }
+
+    #[proptest]
+    fn test_last(set: RangeMap<u64, String>) {
+        assert_eq!(
+            set.last_range_value(),
+            set.iter().max_by_key(|(range, _)| range.end)
+        );
+    }
+
+    #[proptest]
+    fn test_iter_reversible(set: RangeMap<u64, String>) {
+        let forward: Vec<_> = set.iter().collect();
+        let mut backward: Vec<_> = set.iter().rev().collect();
+        backward.reverse();
+        assert_eq!(forward, backward);
+    }
+
+    #[proptest]
+    fn test_into_iter_reversible(set: RangeMap<u64, String>) {
+        let forward: Vec<_> = set.clone().into_iter().collect();
+        let mut backward: Vec<_> = set.into_iter().rev().collect();
+        backward.reverse();
+        assert_eq!(forward, backward);
+    }
+
+    #[proptest]
+    fn test_overlapping_reversible(set: RangeMap<u64, String>, range: Range<u64>) {
+        let forward: Vec<_> = set.overlapping(&range).collect();
+        let mut backward: Vec<_> = set.overlapping(&range).rev().collect();
+        backward.reverse();
+        assert_eq!(forward, backward);
+    }
+
+    #[proptest]
+    fn test_arbitrary_map_u8(ranges: Vec<(Range<u8>, String)>) {
+        let ranges: Vec<_> = ranges
+            .into_iter()
+            .filter(|(range, _value)| range.start != range.end)
+            .collect();
+        let set = ranges
+            .iter()
+            .fold(RangeMap::new(), |mut set, (range, value)| {
+                set.insert(range.clone(), value.clone());
+                set
+            });
+
+        for value in 0..u8::MAX {
+            assert_eq!(
+                set.get(&value),
+                ranges
+                    .iter()
+                    .rev()
+                    .find(|(range, _value)| range.contains(&value))
+                    .map(|(_range, value)| value)
+            );
+        }
+    }
+
+    #[proptest]
+    #[allow(deprecated)]
+    fn test_hash(left: RangeMap<u64, u64>, right: RangeMap<u64, u64>) {
+        use core::hash::{Hash, Hasher, SipHasher};
+
+        let hash = |set: &RangeMap<_, _>| {
+            let mut hasher = SipHasher::new();
+            set.hash(&mut hasher);
+            hasher.finish()
+        };
+
+        if left == right {
+            assert!(
+                hash(&left) == hash(&right),
+                "if two values are equal, their hash must be equal"
+            );
+        }
+
+        // if the hashes are equal the values might not be the same (collision)
+        if hash(&left) != hash(&right) {
+            assert!(
+                left != right,
+                "if two value's hashes are not equal, they must not be equal"
+            );
+        }
+    }
+
+    #[proptest]
+    fn test_ord(left: RangeMap<u64, u64>, right: RangeMap<u64, u64>) {
+        assert_eq!(
+            left == right,
+            left.cmp(&right).is_eq(),
+            "ordering and equality must match"
+        );
+        assert_eq!(
+            left.cmp(&right),
+            left.partial_cmp(&right).unwrap(),
+            "ordering is total for ordered parameters"
+        );
+    }
+
+    #[test]
+    fn test_from_array() {
+        let mut map = RangeMap::new();
+        map.insert(0..100, "hello");
+        map.insert(200..300, "world");
+        assert_eq!(
+            map,
+            RangeMap::from([(0..100, "hello"), (200..300, "world")])
+        );
+    }
+
+    #[test]
+    fn test_macro() {
+        assert_eq!(range_map![], RangeMap::<i64, i64>::default());
+        assert_eq!(
+            range_map!(0..100 => "abc", 100..200 => "def", 200..300 => "ghi"),
+            [(0..100, "abc"), (100..200, "def"), (200..300, "ghi")]
+                .iter()
+                .cloned()
+                .collect(),
+        );
+    }
 
     trait RangeMapExt<K, V> {
         fn to_vec(&self) -> Vec<(Range<K>, V)>;
@@ -1451,6 +1725,14 @@ mod tests {
         assert_eq!(format!("{:?}", map), "{2..5: (), 6..7: (), 8..9: ()}");
     }
 
+    // impl Default where T: ?Default
+
+    #[test]
+    fn always_default() {
+        struct NoDefault;
+        RangeMap::<NoDefault, NoDefault>::default();
+    }
+
     // Iterator Tests
 
     #[test]
@@ -1468,6 +1750,55 @@ mod tests {
 
         // Equality
         assert_eq!(cloned, consumed);
+    }
+
+    // Equality
+    #[test]
+    fn eq() {
+        let mut a: RangeMap<u32, bool> = RangeMap::new();
+        a.insert(1..3, false);
+
+        let mut b: RangeMap<u32, bool> = RangeMap::new();
+        b.insert(1..4, false);
+
+        let mut c: RangeMap<u32, bool> = RangeMap::new();
+        c.insert(1..3, false);
+
+        assert_ne!(a, b);
+        assert_ne!(b, a);
+
+        assert_eq!(a, c);
+        assert_eq!(c, a);
+        assert_eq!(a, a);
+    }
+
+    // Ord
+    #[test]
+    fn partial_ord() {
+        let mut a: RangeMap<u32, bool> = RangeMap::new();
+        a.insert(1..3, false);
+
+        let mut b: RangeMap<u32, bool> = RangeMap::new();
+        b.insert(1..4, false);
+
+        assert_eq!(a.partial_cmp(&a), Some(Ordering::Equal));
+
+        assert_eq!(a.partial_cmp(&b), Some(Ordering::Less));
+        assert_eq!(b.partial_cmp(&a), Some(Ordering::Greater));
+    }
+
+    #[test]
+    fn ord() {
+        let mut a: RangeMap<u32, bool> = RangeMap::new();
+        a.insert(1..3, false);
+
+        let mut b: RangeMap<u32, bool> = RangeMap::new();
+        b.insert(1..4, false);
+
+        assert_eq!(a.cmp(&a), Ordering::Equal);
+
+        assert_eq!(a.cmp(&b), Ordering::Less);
+        assert_eq!(b.cmp(&a), Ordering::Greater);
     }
 
     // impl Serialize
@@ -1502,4 +1833,11 @@ mod tests {
 
     #[cfg(feature = "const_fn")]
     const _MAP: RangeMap<u32, bool> = RangeMap::new();
+
+    #[cfg(feature = "quickcheck")]
+    quickcheck::quickcheck! {
+        fn prop(xs: RangeMap<usize, usize>) -> bool {
+            xs == xs
+        }
+    }
 }

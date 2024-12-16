@@ -1,3 +1,43 @@
+### v1.5.1 (2024-02-27)
+
+- **Fixes**:
+    - Relax bounds on `Default` implementation for all map and set types. Requiring `K: Default` and `V: Default` was accidentally introduced in v1.5.0.
+
+
+### v1.5.0 (2024-02-09) "xfbs rampage edition"
+
+Huge thanks to [xfbs](https://github.com/xfbs), who did pretty much all the work you see in the changelog below! 💖
+
+- **Features**:
+    - Add `union` and `intersection` methods to iterate over the union or intersection of two sets.
+    - Add `first_range_value` and `last_range_value` methods to map types and `first` and `last` methods to set types.
+    - Add literal macros for all collection types — e.g. `range_set![0..100, 200..300, 400..500]`.
+    - Implement `Default` and `Hash` for all collection types.
+    - Implement `DoubleEndedIterator` for all iterators.
+    - Implement `From<[_; N]>` (e.g. `From<[Range<T>; N]> for RangeSet<T>`) for all collections. (Previously you could build a collection from an iterator, but not directly from an array.)
+    - Implement `BitOr` and `BitAnd` for set types. (Convenience wrapper around the `union` and `intersection` methods mentioned above.)
+    - Accept any `R: Borrow<Range<K>>` as argument to `overlapping` methods, allowing it to take ranges by value.
+
+- **Changes**:
+    - Bump minimum supported Rust version to 1.66.0 (released 2022-12-15). This is to gain access to `BTreeMap::first_key_value` and `BTreeMap::last_key_value`, and for compatibility with new versions of some of rangemap's test dependencies.
+
+- **Internal**:
+    - New benchmarks and improved test coverage.
+
+### v1.4.0 (2023-09-19)
+
+- **Changes**:
+    - Bump minimum supported Rust version to 1.61.0 (released 2022-05-19). This is for compatibility with new versions of some of rangemap's test dependencies.
+
+
+### v1.3.1 (2023-09-19)
+
+- **Fixes**:
+    - Fix `PartialEq`, `PartialOrd`, and `Ord` implementations for `RangeMap` (and `RangeSet`). These previously only compared the starts of ranges instead of the entire range. Thanks to https://github.com/hecrj for finding and fixing this!
+- **Changes**:
+    - Minimum supported Rust version for running this crate's tests has increased to 1.61.0 due to a corresponding MSRV bump in a test dependency. This is causing CI builds to fail against rustc 1.56.1, but should not affect consumers of the crate. The next minor release (1.4.0) will bump the minimum supported Rust version of rangemap itself.
+
+
 ### v1.3.0 (2023-01-03)
 
 - **Features**:
