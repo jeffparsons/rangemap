@@ -26,7 +26,7 @@ pub type Union<'a, T> = crate::operations::Union<'a, RangeInclusive<T>, Iter<'a,
 ///
 /// See [`RangeInclusiveMap`]'s documentation for more details.
 ///
-/// [`RangeInclusiveMap`]: struct.RangeInclusiveMap.html
+/// [`RangeInclusiveMap`]: crate::RangeInclusiveMap
 pub struct RangeInclusiveSet<T, StepFnsT = T> {
     rm: RangeInclusiveMap<T, (), StepFnsT>,
 }
