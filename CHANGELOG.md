@@ -1,3 +1,9 @@
+### v1.6.0 (2024-12-17)
+
+- **Features**:
+    - Add quickcheck support, gated behind the `quickcheck` feature.
+
+
 ### v1.5.1 (2024-02-27)
 
 - **Fixes**:
