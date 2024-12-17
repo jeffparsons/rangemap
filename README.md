@@ -129,9 +129,9 @@ book for general information about operating without the standard library.
 
 
 
-[`RangeMap`]: https://docs.rs/rangemap/latest/rangemap/struct.RangeMap.html
-[`RangeInclusiveMap`]: https://docs.rs/rangemap/latest/rangemap/struct.RangeInclusiveMap.html
-[`RangeSet`]: https://docs.rs/rangemap/latest/rangemap/struct.RangeSet.html
-[`RangeInclusiveSet`]: https://docs.rs/rangemap/latest/rangemap/struct.RangeInclusiveSet.html
+[`RangeMap`]: https://docs.rs/rangemap/latest/rangemap/map/struct.RangeMap.html
+[`RangeInclusiveMap`]: https://docs.rs/rangemap/latest/rangemap/inclusive_map/struct.RangeInclusiveMap.html
+[`RangeSet`]: https://docs.rs/rangemap/latest/rangemap/set/struct.RangeSet.html
+[`RangeInclusiveSet`]: https://docs.rs/rangemap/latest/rangemap/inclusive_set/struct.RangeInclusiveSet.html
 [`Range`]: https://doc.rust-lang.org/stable/std/ops/struct.Range.html
 [`RangeInclusive`]: https://doc.rust-lang.org/stable/std/ops/struct.RangeInclusive.html
