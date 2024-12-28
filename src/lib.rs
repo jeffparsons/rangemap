@@ -101,6 +101,9 @@ You can enable the **serde1** feature in your _Cargo.toml_ file like so:
 rangemap = { version = "1", features = ["serde1"] }
 ```
 
+You can similarly enable support for _quickcheck_ by enabling
+the **quickcheck** feature.
+
 
 ## Building without the Rust standard library
 
