@@ -36,7 +36,7 @@ fn range_map<K: Ord + StepLite + Debug + Clone, V: Eq + Clone + Debug>(
 fn criterion_benchmark(c: &mut Criterion) {
     let mut runner = TestRunner::deterministic();
 
-    let mut group = c.benchmark_group(&format!(
+    let mut group = c.benchmark_group(format!(
         "RangeMap<{}, {}>",
         type_name::<Key>(),
         type_name::<Value>()
@@ -98,7 +98,7 @@ fn criterion_benchmark(c: &mut Criterion) {
 
     group.finish();
 
-    let mut group = c.benchmark_group(&format!(
+    let mut group = c.benchmark_group(format!(
         "RangeInclusiveMap<{}, {}>",
         type_name::<Key>(),
         type_name::<Value>()

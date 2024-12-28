@@ -727,7 +727,7 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {        
         // Keep track of the next range in the map beyond the current returned range.
-        while let Some(overlap) = self.btm_range_iter.next() {
+        for overlap in self.btm_range_iter.by_ref() {
             let overlap = &overlap.0.range;
 
             // If the range in the map has advanced beyond the query range, return
