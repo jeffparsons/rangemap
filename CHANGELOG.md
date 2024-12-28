@@ -1,7 +1,8 @@
-### v1.6.0 (2024-12-17)
+### v1.6.0 (unreleased)
 
 - **Features**:
     - Add quickcheck support, gated behind the `quickcheck` feature.
+    - Improve performance of `RangeMap::gaps` by efficiently seeking to the start of the query range.
 
 
 ### v1.5.1 (2024-02-27)
