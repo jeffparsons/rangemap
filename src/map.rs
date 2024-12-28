@@ -190,13 +190,11 @@ where
     ///
     /// The iterator element type is `Range<K>`.
     pub fn gaps<'a>(&'a self, outer_range: &'a Range<K>) -> Gaps<'a, K, V> {
+        let overlap_iter = self.overlapping(outer_range);
         Gaps {
-            outer_range,
-            keys: self.btm.keys(),
-            // We'll start the candidate range at the start of the outer range
-            // without checking what's there. Each time we yield an item,
-            // we'll skip any ranges we find before the next gap.
             candidate_start: &outer_range.start,
+            query_end: &outer_range.end,
+            btm_range_iter: overlap_iter.btm_range_iter,
         }
     }
 
@@ -713,9 +711,9 @@ where
 ///
 /// [`gaps`]: RangeMap::gaps
 pub struct Gaps<'a, K, V> {
-    outer_range: &'a Range<K>,
-    keys: alloc::collections::btree_map::Keys<'a, RangeStartWrapper<K>, V>,
     candidate_start: &'a K,
+    query_end: &'a K,
+    btm_range_iter: alloc::collections::btree_map::Range<'a, RangeStartWrapper<K>, V>,
 }
 
 // `Gaps` is always fused. (See definition of `next` below.)
@@ -727,35 +725,40 @@ where
 {
     type Item = Range<K>;
 
-    fn next(&mut self) -> Option<Self::Item> {
-        for item in &mut self.keys {
-            let range = &item.range;
-            if range.end <= *self.candidate_start {
-                // We're already completely past it; ignore it.
-            } else if range.start <= *self.candidate_start {
-                // We're inside it; move past it.
-                self.candidate_start = &range.end;
-            } else if range.start < self.outer_range.end {
-                // It starts before the end of the outer range,
-                // so move past it and then yield a gap.
-                let gap = self.candidate_start.clone()..range.start.clone();
-                self.candidate_start = &range.end;
-                return Some(gap);
+    fn next(&mut self) -> Option<Self::Item> {        
+        // Keep track of the next range in the map beyond the current returned range.
+        while let Some(overlap) = self.btm_range_iter.next() {
+            let overlap = &overlap.0.range;
+
+            // If the range in the map has advanced beyond the query range, return
+            // any tail gap.
+            if *self.query_end <= overlap.start {
+                break;
             }
+
+            let original_start = self.candidate_start;
+            self.candidate_start = &overlap.end;
+
+            // The query range overhangs to the left, return a gap.
+            if *original_start < overlap.start {
+                let gap = original_start.clone()..overlap.start.clone();
+                return Some(gap)
+            }
+
+            // The remaining query range starts within the current
+            // mapped range.
+            self.candidate_start = &overlap.end;
         }
 
         // Now that we've run out of items, the only other possible
-        // gap is at the end of the outer range.
-        if *self.candidate_start < self.outer_range.end {
-            // There's a gap at the end!
-            let gap = self.candidate_start.clone()..self.outer_range.end.clone();
-            // We're done; skip to the end so we don't try to find any more.
-            self.candidate_start = &self.outer_range.end;
-            Some(gap)
-        } else {
-            // We got to the end; there can't be any more gaps.
-            None
+        // gap is at the end of the query range.
+        if *self.candidate_start < *self.query_end {
+            let gap = self.candidate_start.clone()..self.query_end.clone();
+            self.candidate_start = self.query_end;
+            return Some(gap);
         }
+
+        None
     }
 }
 
