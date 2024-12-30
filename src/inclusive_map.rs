@@ -548,7 +548,7 @@ where
         Gaps {
             candidate_needs_plus_one: false,
             candidate_start: outer_range.start(),
-            query_end: &outer_range.end(),
+            query_end: outer_range.end(),
             btm_range_iter: overlap_iter.btm_range_iter,
             // We'll start the candidate range at the start of the outer range
             // without checking what's there. Each time we yield an item,
@@ -825,7 +825,7 @@ where
     type Item = RangeInclusive<K>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        while let Some(overlap) = self.btm_range_iter.next() {
+        for overlap in self.btm_range_iter.by_ref() {
             let overlap = overlap.0;
 
             // If the range in the map has advanced beyond the query range, return
