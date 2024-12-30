@@ -544,14 +544,15 @@ where
     ///
     /// The iterator element type is `RangeInclusive<K>`.
     pub fn gaps<'a>(&'a self, outer_range: &'a RangeInclusive<K>) -> Gaps<'a, K, V, StepFnsT> {
+        let overlap_iter = self.overlapping(outer_range);
         Gaps {
-            done: false,
-            outer_range,
-            keys: self.btm.keys(),
+            candidate_needs_plus_one: false,
+            candidate_start: outer_range.start(),
+            query_end: &outer_range.end(),
+            btm_range_iter: overlap_iter.btm_range_iter,
             // We'll start the candidate range at the start of the outer range
             // without checking what's there. Each time we yield an item,
             // we'll skip any ranges we find before the next gap.
-            candidate_start: outer_range.start().clone(),
             _phantom: PhantomData,
         }
     }
@@ -801,10 +802,10 @@ pub struct Gaps<'a, K, V, StepFnsT> {
     /// avoid overflowing when dealing with inclusive ranges.
     ///
     /// All other things here are ignored if `done` is `true`.
-    done: bool,
-    outer_range: &'a RangeInclusive<K>,
-    keys: alloc::collections::btree_map::Keys<'a, RangeInclusiveStartWrapper<K>, V>,
-    candidate_start: K,
+    candidate_needs_plus_one: bool,
+    candidate_start: &'a K,
+    query_end: &'a K,
+    btm_range_iter: alloc::collections::btree_map::Range<'a, RangeInclusiveStartWrapper<K>, V>,
     _phantom: PhantomData<StepFnsT>,
 }
 
@@ -824,49 +825,47 @@ where
     type Item = RangeInclusive<K>;
 
     fn next(&mut self) -> Option<Self::Item> {
-        if self.done {
-            // We've already passed the end of the outer range;
-            // there are no more gaps to find.
-            return None;
-        }
+        while let Some(overlap) = self.btm_range_iter.next() {
+            let overlap = overlap.0;
 
-        for item in &mut self.keys {
-            let range = &item.range;
-            if *range.end() < self.candidate_start {
-                // We're already completely past it; ignore it.
-            } else if *range.start() <= self.candidate_start {
-                // We're inside it; move past it.
-                if *range.end() >= *self.outer_range.end() {
-                    // Special case: it goes all the way to the end so we
-                    // can't safely skip past it. (Might overflow.)
-                    self.done = true;
-                    return None;
-                }
-                self.candidate_start = StepFnsT::add_one(range.end());
-            } else if *range.start() <= *self.outer_range.end() {
-                // It starts before the end of the outer range,
-                // so move past it and then yield a gap.
-                let gap = self.candidate_start.clone()..=StepFnsT::sub_one(range.start());
-                if *range.end() >= *self.outer_range.end() {
-                    // Special case: it goes all the way to the end so we
-                    // can't safely skip past it. (Might overflow.)
-                    self.done = true;
-                } else {
-                    self.candidate_start = StepFnsT::add_one(range.end());
-                }
+            // If the range in the map has advanced beyond the query range, return
+            // any tail gap.
+            if *self.query_end < *overlap.start() {
+                break;
+            }
+
+            let candidate_needs_plus_one =
+                core::mem::replace(&mut self.candidate_needs_plus_one, true);
+
+            let cur_candidate_start = core::mem::replace(&mut self.candidate_start, overlap.end());
+
+            let cur_candidate_start = if candidate_needs_plus_one {
+                StepFnsT::add_one(cur_candidate_start)
+            } else {
+                cur_candidate_start.clone()
+            };
+
+            if cur_candidate_start < *overlap.start() {
+                let gap = cur_candidate_start..=StepFnsT::sub_one(overlap.start());
                 return Some(gap);
             }
         }
 
         // Now that we've run out of items, the only other possible
         // gap is one at the end of the outer range.
-        self.done = true;
-        if self.candidate_start <= *self.outer_range.end() {
+        let candidate_needs_plus_one = core::mem::replace(&mut self.candidate_needs_plus_one, true);
+
+        let cur_candidate_start = core::mem::replace(&mut self.candidate_start, self.query_end);
+        if candidate_needs_plus_one {
+            if *cur_candidate_start < *self.query_end {
+                return Some(StepFnsT::add_one(cur_candidate_start)..=self.query_end.clone());
+            }
+        } else if *cur_candidate_start <= *self.query_end {
             // There's a gap at the end!
-            Some(self.candidate_start.clone()..=self.outer_range.end().clone())
-        } else {
-            None
+            return Some(cur_candidate_start.clone()..=self.query_end.clone());
         }
+
+        None
     }
 }
 
