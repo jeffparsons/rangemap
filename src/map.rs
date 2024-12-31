@@ -725,7 +725,7 @@ where
 {
     type Item = Range<K>;
 
-    fn next(&mut self) -> Option<Self::Item> {        
+    fn next(&mut self) -> Option<Self::Item> {
         // Keep track of the next range in the map beyond the current returned range.
         for overlap in self.btm_range_iter.by_ref() {
             let overlap = &overlap.0.range;
@@ -736,13 +736,12 @@ where
                 break;
             }
 
-            let original_start = self.candidate_start;
-            self.candidate_start = &overlap.end;
+            let original_start = core::mem::replace(&mut self.candidate_start, &overlap.end);
 
             // The query range overhangs to the left, return a gap.
             if *original_start < overlap.start {
                 let gap = original_start.clone()..overlap.start.clone();
-                return Some(gap)
+                return Some(gap);
             }
 
             // The remaining query range starts within the current
