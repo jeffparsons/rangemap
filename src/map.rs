@@ -251,6 +251,21 @@ where
     /// existing range in the map, then the existing range (or ranges) will be
     /// partially or completely replaced by the inserted range.
     ///
+    /// Will not coalesce overlapping or adjacent ranges, even when the values
+    /// are identical.
+    ///
+    /// # Panics
+    ///
+    /// Panics if range `start >= end`.
+    pub fn insert_non_coalescing(&mut self, range: Range<K>, value: V) {
+        self.insert_worker( range, value, false)
+    }
+    /// Insert a pair of key range and value into the map.
+    ///
+    /// If the inserted range partially or completely overlaps any
+    /// existing range in the map, then the existing range (or ranges) will be
+    /// partially or completely replaced by the inserted range.
+    ///
     /// If the inserted range either overlaps or is immediately adjacent
     /// any existing range _mapping to the same value_, then the ranges
     /// will be coalesced into a single contiguous range.
@@ -259,6 +274,10 @@ where
     ///
     /// Panics if range `start >= end`.
     pub fn insert(&mut self, range: Range<K>, value: V) {
+        self.insert_worker( range, value, true)
+    }
+
+    fn insert_worker(&mut self, range: Range<K>, value: V, coalescing: bool) {
         // We don't want to have to make empty ranges make sense;
         // they don't represent anything meaningful in this structure.
         assert!(range.start < range.end);
@@ -304,6 +323,7 @@ where
                 stored_value,
                 &mut new_start_wrapper.end_wrapper.range,
                 &new_value,
+                coalescing
             );
         }
 
@@ -355,6 +375,7 @@ where
                 stored_value,
                 &mut new_start_wrapper.end_wrapper.range,
                 &new_value,
+                coalescing
             );
         }
 
@@ -442,10 +463,11 @@ where
         stored_value: V,
         new_range: &mut Range<K>,
         new_value: &V,
+        coalescing: bool,
     ) {
         use core::cmp::{max, min};
 
-        if stored_value == *new_value {
+        if coalescing && stored_value == *new_value {
             // The ranges have the same value, so we can "adopt"
             // the stored range.
             //
@@ -1177,6 +1199,23 @@ mod tests {
         // 0 1 2 3 4 5 6 7 8 9
         // ◌ ●-------◌ ◌ ◌ ◌ ◌
         assert_eq!(range_map.to_vec(), vec![(1..5, false)]);
+    }
+
+    #[test]
+    fn replace_at_end_of_existing_range_should_not_coalesce() {
+        let mut range_map: RangeMap<u32, bool> = RangeMap::new();
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ●---◌ ◌ ◌ ◌ ◌ ◌ ◌
+        range_map.insert(1..3, false);
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ●---◌ ◌ ◌ ◌ ◌
+        range_map.insert_non_coalescing(3..5, true);
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ●---◌ ◌ ◌ ◌ ◌
+        range_map.insert_non_coalescing(3..5, false);
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ●-------◌ ◌ ◌ ◌ ◌
+        assert_eq!(range_map.to_vec(), vec![(1..3, false), (3..5, false)]);
     }
 
     #[test]
