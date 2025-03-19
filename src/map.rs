@@ -1260,6 +1260,34 @@ mod tests {
         });
     }
 
+    #[test]
+    fn non_coalescing_insert() {
+        let mut range_map: RangeMap<u32, bool> = RangeMap::new();
+        // 0 1 2 3 4 5 6 7 8 9
+        // ●---------------◌ ◌
+        range_map.insert(0..8, false);
+        // 0 1 2 3 4 5 6 7 8 9
+        // ◌ ◌ ◌ ●---◌ ◌ ◌ ◌ ◌
+        range_map.insert_non_coalescing(3..5, false);
+        // 0 1 2 3 4 5 6 7 8 9
+        // ●---------------◌ ◌
+        assert_eq!(
+            range_map.to_vec(),
+            vec![(0..3, false), (3..5, false), (5..8, false)]
+        );
+    }
+
+    #[test]
+    fn non_coalescing_insert_empty() {
+        let mut range_map: RangeMap<u32, bool> = RangeMap::new();
+        // 0 1 2 3 4 5 6 7 8 9
+        // ●---------------◌ ◌
+        range_map.insert_non_coalescing(0..8, false);
+        // 0 1 2 3 4 5 6 7 8 9
+        // ●---------------◌ ◌
+        assert_eq!(range_map.to_vec(), vec![(0..8, false)]);
+    }
+
     //
     // Get* tests
     //
