@@ -258,7 +258,7 @@ where
     ///
     /// Panics if range `start >= end`.
     pub fn insert_non_coalescing(&mut self, range: Range<K>, value: V) {
-        self.insert_worker( range, value, false)
+        self.insert_worker(range, value, false)
     }
     /// Insert a pair of key range and value into the map.
     ///
@@ -274,7 +274,7 @@ where
     ///
     /// Panics if range `start >= end`.
     pub fn insert(&mut self, range: Range<K>, value: V) {
-        self.insert_worker( range, value, true)
+        self.insert_worker(range, value, true)
     }
 
     fn insert_worker(&mut self, range: Range<K>, value: V, coalescing: bool) {
@@ -323,7 +323,7 @@ where
                 stored_value,
                 &mut new_start_wrapper.end_wrapper.range,
                 &new_value,
-                coalescing
+                coalescing,
             );
         }
 
@@ -354,17 +354,18 @@ where
             // One extra exception: if we have different values,
             // and the stored range starts at the end of the range to insert,
             // then we don't want to keep looping forever trying to find more!
-            #[allow(clippy::suspicious_operation_groupings)]
+            #[allow(clippy::collapsible_if)]
             if stored_start_wrapper.end_wrapper.range.start
                 == new_start_wrapper.end_wrapper.range.end
-                && *stored_value != new_value
             {
-                // We're beyond the last stored range that could be relevant.
-                // Avoid wasting time on irrelevant ranges, or even worse, looping forever.
-                // (`adjust_touching_ranges_for_insert` below assumes that the given range
-                // is relevant, and behaves very poorly if it is handed a range that it
-                // shouldn't be touching.)
-                break;
+                if (*stored_value != new_value) || (coalescing == false) {
+                    // We're beyond the last stored range that could be relevant.
+                    // Avoid wasting time on irrelevant ranges, or even worse, looping forever.
+                    // (`adjust_touching_ranges_for_insert` below assumes that the given range
+                    // is relevant, and behaves very poorly if it is handed a range that it
+                    // shouldn't be touching.)
+                    break;
+                }
             }
 
             let stored_start_wrapper = stored_start_wrapper.clone();
