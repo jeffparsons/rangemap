@@ -1,4 +1,4 @@
-### v1.6.0 (unreleased)
+### v1.6.0 (2025-07-26)
 
 - **Features**:
     - Add quickcheck support, gated behind the `quickcheck` feature.
