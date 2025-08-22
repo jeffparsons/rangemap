@@ -19,6 +19,7 @@ exclude = [
     ".github/*",
     "bors.toml",
     "pre_commit.sh",
+    "README.fuzz.md",
 ]
 
 [dependencies]
