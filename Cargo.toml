@@ -15,6 +15,12 @@ Contiguous and overlapping ranges that map to the same value are coalesced into 
 """
 categories = ["data-structures"]
 rust-version = "1.81.0"
+exclude = [
+    ".github/*",
+    "bors.toml",
+    "pre_commit.sh",
+    "README.fuzz.md",
+]
 
 [dependencies]
 quickcheck = { version = "1.0.3", optional = true }
