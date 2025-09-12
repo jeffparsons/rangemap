@@ -559,7 +559,10 @@ where
 
     /// Gets an iterator over all the stored ranges that are
     /// either partially or completely overlapped by the given range.
-    pub fn overlapping<R: Borrow<RangeInclusive<K>>>(&self, range: R) -> Overlapping<K, V, R> {
+    pub fn overlapping<R: Borrow<RangeInclusive<K>>>(
+        &'_ self,
+        range: R,
+    ) -> Overlapping<'_, K, V, R> {
         // Find the first matching stored range by its _end_,
         // using sneaky layering and `Borrow` implementation. (See `range_wrappers` module.)
         let start_sliver = RangeInclusiveEndWrapper::new(

@@ -175,7 +175,7 @@ where
     /// either partially or completely overlapped by the given range.
     ///
     /// The iterator element type is `RangeInclusive<T>`.
-    pub fn overlapping<R: Borrow<RangeInclusive<T>>>(&self, range: R) -> Overlapping<T, R> {
+    pub fn overlapping<R: Borrow<RangeInclusive<T>>>(&'_ self, range: R) -> Overlapping<'_, T, R> {
         Overlapping {
             inner: self.rm.overlapping(range),
         }
