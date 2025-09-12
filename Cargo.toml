@@ -14,7 +14,7 @@ Map and set data structures whose keys are stored as ranges.
 Contiguous and overlapping ranges that map to the same value are coalesced into a single range.
 """
 categories = ["data-structures"]
-rust-version = "1.66.0"
+rust-version = "1.81.0"
 
 [dependencies]
 quickcheck = { version = "1.0.3", optional = true }
@@ -26,13 +26,13 @@ permutator = "0.4"
 # to update rangemap's MSRV, too, but until I actually publish
 # a policy on that I'm going to avoid doing a big bump right now.
 # (Later problem!)
-criterion = "= 0.5.1"
-rand = "0.8"
+criterion = "0.7"
+rand = "0.9"
 chrono = "0.4"          # For examples
 rustc_version = "0.4"
 serde_json = "1"
-proptest = "1.4.0"
-test-strategy = "0.3.1"
+proptest = "1.4"
+test-strategy = "0.4"
 
 [features]
 serde1 = ["serde"]
