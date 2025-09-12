@@ -26,7 +26,7 @@ permutator = "0.4"
 # to update rangemap's MSRV, too, but until I actually publish
 # a policy on that I'm going to avoid doing a big bump right now.
 # (Later problem!)
-criterion = "= 0.3.5"
+criterion = "= 0.5.1"
 rand = "0.8"
 chrono = "0.4"          # For examples
 rustc_version = "0.4"
