@@ -85,6 +85,11 @@ for (range, person) in roster.iter() {
 // 2019-03-04UTC (P7D): Carol
 ```
 
+## Empty ranges
+
+Insert and remove operations in this crate change a subset of the data structure,
+defined by the passed range. When the passed range is empty, the operation
+results in a no-op, similar to adding 0 to a number.
 
 ## Crate features
 
