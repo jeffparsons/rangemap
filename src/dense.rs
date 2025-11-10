@@ -22,7 +22,7 @@ pub struct DenseU32RangeMap<V> {
 
 impl<V> DenseU32RangeMap<V>
 where
-    V: Eq + Clone,
+    V: PartialEq + Clone,
 {
     pub fn new() -> DenseU32RangeMap<V> {
         DenseU32RangeMap {
@@ -64,7 +64,7 @@ where
 
 impl<V> From<RangeMap<u32, V>> for DenseU32RangeMap<V>
 where
-    V: Eq + Clone,
+    V: PartialEq + Clone,
 {
     fn from(range_map: RangeMap<u32, V>) -> Self {
         let mut dense = Self::new();
@@ -84,7 +84,7 @@ where
 
 impl<V> From<RangeInclusiveMap<u32, V>> for DenseU32RangeMap<V>
 where
-    V: Eq + Clone,
+    V: PartialEq + Clone,
 {
     fn from(range_inclusive_map: RangeInclusiveMap<u32, V, u32>) -> Self {
         let mut dense = Self::new();
@@ -106,7 +106,7 @@ pub struct Iter<'a, V> {
 // Coalesce items from the underlying dense map as we go.
 impl<'a, V> Iterator for Iter<'a, V>
 where
-    V: 'a + Eq,
+    V: 'a + PartialEq,
 {
     type Item = (RangeInclusive<u32>, &'a V);
 
@@ -146,7 +146,7 @@ pub struct EndExclusiveIter<'a, V> {
 
 impl<'a, V> Iterator for EndExclusiveIter<'a, V>
 where
-    V: 'a + Eq,
+    V: 'a + PartialEq,
 {
     type Item = (Range<u32>, &'a V);
 
