@@ -107,7 +107,7 @@ where
 impl<K, V> quickcheck::Arbitrary for RangeInclusiveMap<K, V>
 where
     K: quickcheck::Arbitrary + Ord + StepLite,
-    V: quickcheck::Arbitrary + Eq,
+    V: quickcheck::Arbitrary + PartialEq,
 {
     fn arbitrary(g: &mut quickcheck::Gen) -> Self {
         // REVISIT: allocation could be avoided if Gen::gen_size were public (https://github.com/BurntSushi/quickcheck/issues/326#issue-2653601170)
@@ -133,7 +133,7 @@ impl<K, V, StepFnsT> RangeInclusiveMap<K, V, StepFnsT> {
 impl<K, V> RangeInclusiveMap<K, V, K>
 where
     K: Ord + Clone + StepLite,
-    V: Eq + Clone,
+    V: PartialEq + Clone,
 {
     /// Makes a new empty `RangeInclusiveMap`.
     #[cfg(feature = "const_fn")]
@@ -151,7 +151,7 @@ where
 impl<K, V, StepFnsT> RangeInclusiveMap<K, V, StepFnsT>
 where
     K: Ord + Clone,
-    V: Eq + Clone,
+    V: PartialEq + Clone,
     StepFnsT: StepFns<K>,
 {
     /// Makes a new empty `RangeInclusiveMap`, specifying successor and
@@ -690,7 +690,7 @@ impl<K, V> DoubleEndedIterator for IntoIter<K, V> {
 impl<K: Debug, V: Debug> Debug for RangeInclusiveMap<K, V>
 where
     K: Ord + Clone + StepLite,
-    V: Eq + Clone,
+    V: PartialEq + Clone,
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         f.debug_map().entries(self.iter()).finish()
@@ -700,7 +700,7 @@ where
 impl<K, V> FromIterator<(RangeInclusive<K>, V)> for RangeInclusiveMap<K, V>
 where
     K: Ord + Clone + StepLite,
-    V: Eq + Clone,
+    V: PartialEq + Clone,
 {
     fn from_iter<T: IntoIterator<Item = (RangeInclusive<K>, V)>>(iter: T) -> Self {
         let mut range_map = RangeInclusiveMap::new();
@@ -712,7 +712,7 @@ where
 impl<K, V> Extend<(RangeInclusive<K>, V)> for RangeInclusiveMap<K, V>
 where
     K: Ord + Clone + StepLite,
-    V: Eq + Clone,
+    V: PartialEq + Clone,
 {
     fn extend<T: IntoIterator<Item = (RangeInclusive<K>, V)>>(&mut self, iter: T) {
         iter.into_iter().for_each(move |(k, v)| {
@@ -725,7 +725,7 @@ where
 impl<K, V> Serialize for RangeInclusiveMap<K, V>
 where
     K: Ord + Clone + StepLite + Serialize,
-    V: Eq + Clone + Serialize,
+    V: PartialEq + Clone + Serialize,
 {
     fn serialize<S>(&self, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -744,7 +744,7 @@ where
 impl<'de, K, V> Deserialize<'de> for RangeInclusiveMap<K, V>
 where
     K: Ord + Clone + StepLite + Deserialize<'de>,
-    V: Eq + Clone + Deserialize<'de>,
+    V: PartialEq + Clone + Deserialize<'de>,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -772,7 +772,7 @@ impl<K, V> RangeInclusiveMapVisitor<K, V> {
 impl<'de, K, V> Visitor<'de> for RangeInclusiveMapVisitor<K, V>
 where
     K: Ord + Clone + StepLite + Deserialize<'de>,
-    V: Eq + Clone + Deserialize<'de>,
+    V: PartialEq + Clone + Deserialize<'de>,
 {
     type Value = RangeInclusiveMap<K, V>;
 
@@ -972,7 +972,7 @@ mod tests {
     impl<K, V> Arbitrary for RangeInclusiveMap<K, V>
     where
         K: Ord + Clone + Debug + StepLite + Arbitrary + 'static,
-        V: Clone + Eq + Arbitrary + 'static,
+        V: Clone + PartialEq + Arbitrary + 'static,
     {
         type Parameters = ();
         type Strategy = BoxedStrategy<Self>;
@@ -1137,7 +1137,7 @@ mod tests {
     impl<K, V> RangeInclusiveMapExt<K, V> for RangeInclusiveMap<K, V, K>
     where
         K: Ord + Clone + StepLite,
-        V: Eq + Clone,
+        V: PartialEq + Clone,
     {
         fn to_vec(&self) -> Vec<(RangeInclusive<K>, V)> {
             self.iter().map(|(kr, v)| (kr.clone(), v.clone())).collect()

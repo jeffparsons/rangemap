@@ -87,7 +87,7 @@ where
 impl<K, V> quickcheck::Arbitrary for RangeMap<K, V>
 where
     K: quickcheck::Arbitrary + Ord,
-    V: quickcheck::Arbitrary + Eq,
+    V: quickcheck::Arbitrary + PartialEq,
 {
     fn arbitrary(g: &mut quickcheck::Gen) -> Self {
         // REVISIT: allocation could be avoided if Gen::gen_size were public (https://github.com/BurntSushi/quickcheck/issues/326#issue-2653601170)
@@ -243,7 +243,7 @@ where
 impl<K, V> RangeMap<K, V>
 where
     K: Ord + Clone,
-    V: Eq + Clone,
+    V: PartialEq + Clone,
 {
     /// Insert a pair of key range and value into the map.
     ///
@@ -610,7 +610,7 @@ impl<K: Debug, V: Debug> Debug for RangeMap<K, V> {
 impl<K, V> FromIterator<(Range<K>, V)> for RangeMap<K, V>
 where
     K: Ord + Clone,
-    V: Eq + Clone,
+    V: PartialEq + Clone,
 {
     fn from_iter<T: IntoIterator<Item = (Range<K>, V)>>(iter: T) -> Self {
         let mut range_map = RangeMap::new();
@@ -622,7 +622,7 @@ where
 impl<K, V> Extend<(Range<K>, V)> for RangeMap<K, V>
 where
     K: Ord + Clone,
-    V: Eq + Clone,
+    V: PartialEq + Clone,
 {
     fn extend<T: IntoIterator<Item = (Range<K>, V)>>(&mut self, iter: T) {
         iter.into_iter().for_each(move |(k, v)| {
@@ -654,7 +654,7 @@ where
 impl<'de, K, V> Deserialize<'de> for RangeMap<K, V>
 where
     K: Ord + Clone + Deserialize<'de>,
-    V: Eq + Clone + Deserialize<'de>,
+    V: PartialEq + Clone + Deserialize<'de>,
 {
     fn deserialize<D>(deserializer: D) -> Result<Self, D::Error>
     where
@@ -682,7 +682,7 @@ impl<K, V> RangeMapVisitor<K, V> {
 impl<'de, K, V> Visitor<'de> for RangeMapVisitor<K, V>
 where
     K: Ord + Clone + Deserialize<'de>,
-    V: Eq + Clone + Deserialize<'de>,
+    V: PartialEq + Clone + Deserialize<'de>,
 {
     type Value = RangeMap<K, V>;
 
@@ -819,7 +819,7 @@ where
     }
 }
 
-impl<K: Ord + Clone, V: Eq + Clone, const N: usize> From<[(Range<K>, V); N]> for RangeMap<K, V> {
+impl<K: Ord + Clone, V: PartialEq + Clone, const N: usize> From<[(Range<K>, V); N]> for RangeMap<K, V> {
     fn from(value: [(Range<K>, V); N]) -> Self {
         let mut map = Self::new();
         for (range, value) in IntoIterator::into_iter(value) {
@@ -859,7 +859,7 @@ mod tests {
     impl<K, V> Arbitrary for RangeMap<K, V>
     where
         K: Ord + Clone + Debug + Arbitrary + 'static,
-        V: Clone + Eq + Arbitrary + 'static,
+        V: Clone + PartialEq + Arbitrary + 'static,
     {
         type Parameters = ();
         type Strategy = BoxedStrategy<Self>;
@@ -1018,7 +1018,7 @@ mod tests {
     impl<K, V> RangeMapExt<K, V> for RangeMap<K, V>
     where
         K: Ord + Clone,
-        V: Eq + Clone,
+        V: PartialEq + Clone,
     {
         fn to_vec(&self) -> Vec<(Range<K>, V)> {
             self.iter().map(|(kr, v)| (kr.clone(), v.clone())).collect()
