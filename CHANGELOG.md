@@ -1,3 +1,12 @@
+### v1.7.0 (2025-11-15)
+
+- **Features**:
+    - Relax `Eq` bounds to `PartialEq`. (We don't actually need to demand reflexivity.)
+
+- **Changes**:
+    - Bump minimum supported Rust version to 1.81.0 (released 2024-09-05).
+
+
 ### v1.6.0 (2025-07-26)
 
 - **Features**:
