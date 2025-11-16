@@ -189,6 +189,12 @@ where
         self.get_key_value(key).map(|(_range, value)| value)
     }
 
+    /// Returns a mutable reference to the value corresponding to the given key,
+    /// if the key is covered by any range in the map.
+    pub fn get_mut(&mut self, key: &K) -> Option<&mut V>{
+        self.get_key_value_mut(key).map(|(_, value)| value)
+    }
+
     /// Returns the range-value pair (as a pair of references) corresponding
     /// to the given key, if the key is covered by any range in the map.
     pub fn get_key_value(&self, key: &K) -> Option<(&RangeInclusive<K>, &V)> {
@@ -199,6 +205,25 @@ where
         let key_as_start = RangeInclusiveStartWrapper::new(key.clone()..=key.clone());
         self.btm
             .range((Bound::Unbounded, Bound::Included(key_as_start)))
+            .next_back()
+            .filter(|(range_start_wrapper, _value)| {
+                // Does the only candidate range contain
+                // the requested key?
+                range_start_wrapper.contains(key)
+            })
+            .map(|(range_start_wrapper, value)| (&range_start_wrapper.range, value))
+    }
+
+    /// Returns the range-value pair (immutable key reference and mutable value
+    /// reference) corresponding to the given key, if the key is covered by any range in the map.
+    pub fn get_key_value_mut(&mut self, key: &K) -> Option<(&RangeInclusive<K>, &mut V)> {
+        use core::ops::Bound;
+
+        // The only stored range that could contain the given key is the
+        // last stored range whose start is less than or equal to this key.
+        let key_as_start = RangeInclusiveStartWrapper::new(key.clone()..=key.clone());
+        self.btm
+            .range_mut((Bound::Unbounded, Bound::Included(key_as_start)))
             .next_back()
             .filter(|(range_start_wrapper, _value)| {
                 // Does the only candidate range contain
@@ -1349,6 +1374,17 @@ mod tests {
     }
 
     #[test]
+    fn get_mut(){
+        let mut range_map: RangeInclusiveMap<u32, bool> = RangeInclusiveMap::new();
+        range_map.insert(0..=50, false);
+        if let Some(value) = range_map.get_mut(&50){
+            *value = true;
+        }
+        assert_eq!(range_map.get(&50), Some(&true));
+        assert_eq!(range_map.get(&51), None);
+    }
+
+    #[test]
     fn get_key_value() {
         let mut range_map: RangeInclusiveMap<u32, bool> = RangeInclusiveMap::new();
         range_map.insert(0..=50, false);
@@ -1356,6 +1392,16 @@ mod tests {
         assert_eq!(range_map.get_key_value(&51), None);
     }
 
+    #[test]
+    fn get_key_value_mut(){
+        let mut range_map: RangeInclusiveMap<u32, bool> = RangeInclusiveMap::new();
+        range_map.insert(0..=50, false);
+        if let Some((_, value)) = range_map.get_key_value_mut(&50){
+            *value = true
+        }
+        assert_eq!(range_map.get_key_value(&50), Some((&(0..=50), &true)));
+        assert_eq!(range_map.get_key_value(&51), None);
+    }
     //
     // Removal tests
     //
