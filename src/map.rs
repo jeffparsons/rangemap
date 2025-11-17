@@ -259,9 +259,10 @@ where
     ///
     /// Panics if range `start >= end`.
     pub fn insert(&mut self, range: Range<K>, value: V) {
-        // We don't want to have to make empty ranges make sense;
-        // they don't represent anything meaningful in this structure.
-        assert!(range.start < range.end);
+        // A range is empty if start >= end, in that case inserting makes no sense.
+        if range.start >= range.end {
+            return;
+        }
 
         // Wrap up the given range so that we can "borrow"
         // it as a wrapper reference to either its start or end.
