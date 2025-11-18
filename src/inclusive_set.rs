@@ -140,9 +140,7 @@ where
     /// any existing range, then the ranges will be coalesced into
     /// a single contiguous range.
     ///
-    /// # Panics
-    ///
-    /// Panics if range `start > end`.
+    /// Inserting an empty range is a no-op.
     pub fn insert(&mut self, range: RangeInclusive<T>) {
         self.rm.insert(range, ());
     }
@@ -153,9 +151,7 @@ where
     /// in the set, then those ranges will be contracted to no
     /// longer cover the removed range.
     ///
-    /// # Panics
-    ///
-    /// Panics if range `start > end`.
+    /// Removing an empty range is a no-op.
     pub fn remove(&mut self, range: RangeInclusive<T>) {
         self.rm.remove(range);
     }

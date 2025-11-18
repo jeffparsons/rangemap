@@ -238,20 +238,14 @@ where
     /// any existing range _mapping to the same value_, then the ranges
     /// will be coalesced into a single contiguous range.
     ///
-    /// # Panics
-    ///
-    /// Panics if range `start > end`.
+    /// Inserting an empty range is a no-op.
     pub fn insert(&mut self, range: RangeInclusive<K>, value: V) {
         use core::ops::Bound;
 
-        // Backwards ranges don't make sense.
-        // `RangeInclusive` doesn't enforce this,
-        // and we don't want weird explosions further down
-        // if someone gives us such a range.
-        assert!(
-            range.start() <= range.end(),
-            "Range start can not be after range end"
-        );
+        // Inserting an empty range is a no-op.
+        if range.is_empty() {
+            return;
+        }
 
         // Wrap up the given range so that we can "borrow"
         // it as a wrapper reference to either its start or end.
@@ -374,21 +368,14 @@ where
     /// in the map, then those ranges will be contracted to no
     /// longer cover the removed range.
     ///
-    ///
-    /// # Panics
-    ///
-    /// Panics if range `start > end`.
+    /// Removing an empty range is a no-op.
     pub fn remove(&mut self, range: RangeInclusive<K>) {
         use core::ops::Bound;
 
-        // Backwards ranges don't make sense.
-        // `RangeInclusive` doesn't enforce this,
-        // and we don't want weird explosions further down
-        // if someone gives us such a range.
-        assert!(
-            range.start() <= range.end(),
-            "Range start can not be after range end"
-        );
+        // Removing an empty range is a no-op.
+        if range.is_empty() {
+            return;
+        }
 
         let range_start_wrapper: RangeInclusiveStartWrapper<K> =
             RangeInclusiveStartWrapper::new(range);
