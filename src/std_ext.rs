@@ -121,6 +121,28 @@ macro_rules! impl_step_lite {
 
 impl_step_lite!(usize u8 u16 u32 u64 u128 i8 i16 i32 i64 i128);
 
+#[cfg(feature = "ordered-float")]
+macro_rules! impl_step_lite_ordered_float {
+    ($($t:ty)*) => ($(
+        impl StepLite for ordered_float::NotNan<$t> {
+            #[inline]
+            fn add_one(&self) -> Self {
+                // SAFETY: next_up() is well-defined to not be NaN for all non-NaN.
+                unsafe { ordered_float::NotNan::new_unchecked(self.next_up()) }
+            }
+
+            #[inline]
+            fn sub_one(&self) -> Self {
+                // SAFETY: next_down() is well-defined to not be NaN for all non-NaN.
+                unsafe { ordered_float::NotNan::new_unchecked(self.next_down()) }
+            }
+        }
+    )*)
+}
+
+#[cfg(feature = "ordered-float")]
+impl_step_lite_ordered_float!(f32 f64);
+
 // TODO: When on nightly, a blanket implementation for
 // all types that implement `core::iter::Step` instead
 // of the auto-impl above.

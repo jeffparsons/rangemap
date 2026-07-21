@@ -25,6 +25,7 @@ exclude = [
 [dependencies]
 quickcheck = { version = "1.0.3", optional = true }
 serde = { version = "1", optional = true }
+ordered-float = { version = "5.3.0", optional = true }
 
 [dev-dependencies]
 permutator = "0.4"
@@ -39,9 +40,10 @@ rustc_version = "0.4"
 serde_json = "1"
 proptest = "1.4"
 test-strategy = "0.4"
+ordered-float = { version = "5.3.0", features = ["proptest"] }
 
 [features]
-serde1 = ["serde"]
+serde1 = ["serde", "ordered-float?/serde"]
 # So we can run doc tests from "README.md".
 nightly = []
 # Enables `RangeMap::new()`, `RangeInclusiveMap::new()`, `RangeSet::new()`,
@@ -50,6 +52,7 @@ nightly = []
 # but is soon to be stabilized: <https://github.com/rust-lang/rust/issues/71835>
 const_fn = []
 quickcheck = ["dep:quickcheck"]
+ordered-float = ["dep:ordered-float"]
 
 [[bench]]
 name = "benches"

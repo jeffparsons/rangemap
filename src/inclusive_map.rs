@@ -1973,4 +1973,143 @@ mod tests {
             xs == xs
         }
     }
+
+    #[cfg(feature = "ordered-float")]
+    mod ordered_float {
+        use super::*;
+        use ::ordered_float::NotNan;
+
+        type F64 = NotNan<f64>;
+
+        #[proptest]
+        #[allow(clippy::len_zero)]
+        fn test_len(mut map: RangeInclusiveMap<F64, String>) {
+            assert_eq!(map.len(), map.iter().count());
+            assert_eq!(map.is_empty(), map.len() == 0);
+            map.clear();
+            assert_eq!(map.len(), 0);
+            assert!(map.is_empty());
+            assert_eq!(map.iter().count(), 0);
+        }
+
+        #[proptest]
+        fn test_first(set: RangeInclusiveMap<F64, String>) {
+            assert_eq!(
+                set.first_range_value(),
+                set.iter().min_by_key(|(range, _)| range.start())
+            );
+        }
+
+        #[proptest]
+        fn test_last(set: RangeInclusiveMap<F64, String>) {
+            assert_eq!(
+                set.last_range_value(),
+                set.iter().max_by_key(|(range, _)| range.end())
+            );
+        }
+
+        #[proptest]
+        fn test_iter_reversible(set: RangeInclusiveMap<F64, String>) {
+            let forward: Vec<_> = set.iter().collect();
+            let mut backward: Vec<_> = set.iter().rev().collect();
+            backward.reverse();
+            assert_eq!(forward, backward);
+        }
+
+        #[proptest]
+        fn test_into_iter_reversible(set: RangeInclusiveMap<F64, String>) {
+            let forward: Vec<_> = set.clone().into_iter().collect();
+            let mut backward: Vec<_> = set.into_iter().rev().collect();
+            backward.reverse();
+            assert_eq!(forward, backward);
+        }
+
+        #[proptest]
+        fn test_overlapping_reversible(
+            set: RangeInclusiveMap<F64, String>,
+            range: RangeInclusive<F64>,
+        ) {
+            let forward: Vec<_> = set.overlapping(&range).collect();
+            let mut backward: Vec<_> = set.overlapping(&range).rev().collect();
+            backward.reverse();
+            assert_eq!(forward, backward);
+        }
+
+        #[proptest]
+        fn test_arbitrary_map_u8(ranges: Vec<(RangeInclusive<u8>, String)>) {
+            let ranges: Vec<_> = ranges
+                .into_iter()
+                .filter(|(range, _value)| range.start() != range.end())
+                .collect();
+            let set = ranges
+                .iter()
+                .fold(RangeInclusiveMap::new(), |mut set, (range, value)| {
+                    set.insert(range.clone(), value.clone());
+                    set
+                });
+
+            for value in 0..u8::MAX {
+                assert_eq!(
+                    set.get(&value),
+                    ranges
+                        .iter()
+                        .rev()
+                        .find(|(range, _value)| range.contains(&value))
+                        .map(|(_range, value)| value)
+                );
+            }
+        }
+
+        #[proptest]
+        #[allow(deprecated)]
+        fn test_hash(left: RangeInclusiveMap<F64, F64>, right: RangeInclusiveMap<F64, F64>) {
+            use core::hash::{Hash, Hasher, SipHasher};
+
+            let hash = |set: &RangeInclusiveMap<_, _>| {
+                let mut hasher = SipHasher::new();
+                set.hash(&mut hasher);
+                hasher.finish()
+            };
+
+            if left == right {
+                assert!(
+                    hash(&left) == hash(&right),
+                    "if two values are equal, their hash must be equal"
+                );
+            }
+
+            // if the hashes are equal the values might not be the same (collision)
+            if hash(&left) != hash(&right) {
+                assert!(
+                    left != right,
+                    "if two value's hashes are not equal, they must not be equal"
+                );
+            }
+        }
+
+        #[proptest]
+        fn test_ord(left: RangeInclusiveMap<F64, F64>, right: RangeInclusiveMap<F64, F64>) {
+            assert_eq!(
+                left == right,
+                left.cmp(&right).is_eq(),
+                "ordering and equality must match"
+            );
+            assert_eq!(
+                left.cmp(&right),
+                left.partial_cmp(&right).unwrap(),
+                "ordering is total for ordered parameters"
+            );
+        }
+
+        #[test]
+        fn test_from_array() {
+            let mut map = RangeInclusiveMap::new();
+            map.insert(0..=100, "hello");
+            map.insert(200..=300, "world");
+            assert_eq!(
+                map,
+                RangeInclusiveMap::from([(0..=100, "hello"), (200..=300, "world")])
+            );
+        }
+    }
 }
