@@ -53,6 +53,25 @@ jobs:
         with:
           command: test
           args: --features const_fn
+      # Unlike the features above, run this on every non-nightly toolchain
+      # rather than just stable: `ordered-float5` is the feature most likely
+      # to accidentally depend on something newer than our MSRV, because it
+      # deals in float operations that the standard library has only
+      # stabilized comparatively recently.
+      - name: test with ordered-float5
+        uses: actions-rs/cargo@v1
+        if: matrix.toolchain != 'nightly'
+        with:
+          command: test
+          args: --features ordered-float5
+      # `serde1` reaches into `ordered-float` to pick up its `serde` feature,
+      # so make sure the combination of the two actually works.
+      - name: stable test with serde and ordered-float5
+        uses: actions-rs/cargo@v1
+        if: matrix.toolchain == 'stable'
+        with:
+          command: test
+          args: --features serde1,ordered-float5
       - name: nightly test
         uses: actions-rs/cargo@v1
         if: matrix.toolchain == 'nightly'
