@@ -78,11 +78,39 @@ jobs:
         with:
           command: test
           args: --features nightly
+  # We claim to work without the standard library, so make sure we
+  # actually do, with every combination of features that could plausibly
+  # drag it back in.
+  no-std:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+      - name: install toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          default: true
+          profile: minimal
+          target: thumbv7em-none-eabi
+      - name: build for a bare metal target
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --target thumbv7em-none-eabi
+      # Not `quickcheck`: it depends on `getrandom`, which doesn't support
+      # bare metal targets at all, and it only makes sense in tests anyway.
+      - name: build for a bare metal target with serde1 and ordered-float5
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --target thumbv7em-none-eabi --features serde1,ordered-float5
   ci-success:
     name: ci
     if: ${{ success() }}
     needs:
       - test
+      - no-std
     runs-on: ubuntu-latest
     steps:
       - name: CI succeeded
