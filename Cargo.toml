@@ -3,6 +3,12 @@ name = "rangemap"
 version = "1.7.1"
 authors = ["Jeff Parsons <jeff@parsons.io>"]
 edition = "2018"
+# Opt in to the feature resolver that editions 2021 and later get by
+# default, so that dev-dependency features don't leak into normal builds.
+# Without this, our unconditional `ordered-float` dev-dependency turns on
+# that crate's `std` feature for the library too, which both hides and
+# causes `no_std` breakage.
+resolver = "2"
 license = "MIT/Apache-2.0"
 readme = "README.md"
 repository = "https://github.com/jeffparsons/rangemap"
