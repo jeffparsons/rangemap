@@ -52,7 +52,7 @@ nightly = []
 # but is soon to be stabilized: <https://github.com/rust-lang/rust/issues/71835>
 const_fn = []
 quickcheck = ["dep:quickcheck"]
-ordered-float = ["dep:ordered-float"]
+ordered-float5 = ["dep:ordered-float"]
 
 [[bench]]
 name = "benches"

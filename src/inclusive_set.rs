@@ -849,7 +849,7 @@ mod tests {
 
     // ordered-float
 
-    #[cfg(feature = "ordered-float")]
+    #[cfg(feature = "ordered-float5")]
     mod ordered_float {
         use super::*;
         use ::ordered_float::NotNan;
