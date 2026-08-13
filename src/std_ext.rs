@@ -157,8 +157,9 @@ macro_rules! impl_step_lite_not_nan {
                     }
                 };
 
-                // SAFETY: the successor of a non-NaN float is never NaN.
-                unsafe { ordered_float::NotNan::new_unchecked(<$t>::from_bits(next_bits)) }
+                // The successor of a non-NaN float is never NaN.
+                ordered_float::NotNan::new(<$t>::from_bits(next_bits))
+                    .expect("successor of a non-NaN float is never NaN")
             }
 
             #[inline]
@@ -181,8 +182,9 @@ macro_rules! impl_step_lite_not_nan {
                     }
                 };
 
-                // SAFETY: the predecessor of a non-NaN float is never NaN.
-                unsafe { ordered_float::NotNan::new_unchecked(<$t>::from_bits(next_bits)) }
+                // The predecessor of a non-NaN float is never NaN.
+                ordered_float::NotNan::new(<$t>::from_bits(next_bits))
+                    .expect("predecessor of a non-NaN float is never NaN")
             }
         }
     )*)
