@@ -121,27 +121,75 @@ macro_rules! impl_step_lite {
 
 impl_step_lite!(usize u8 u16 u32 u64 u128 i8 i16 i32 i64 i128);
 
+// The successor of a float is the next representable float, i.e. one ULP away.
+//
+// We can't use the standard library's `next_up` and `next_down` for this
+// because they were only stabilised in Rust 1.86, well beyond our MSRV,
+// so we reimplement them here. These mirror the standard library's versions
+// exactly, including their treatment of zeroes (`-0.0` and `0.0` share the
+// same neighbours, which agrees with how `NotNan` orders them) and their
+// saturation at the infinities. `StepLite` explicitly allows saturating
+// at the ends of the range.
+//
+// We don't need the standard library's NaN check, because `NotNan` has
+// already ruled that out for us.
 #[cfg(feature = "ordered-float")]
-macro_rules! impl_step_lite_ordered_float {
-    ($($t:ty)*) => ($(
+macro_rules! impl_step_lite_not_nan {
+    ($($t:ty => $bits:ty),* $(,)?) => ($(
         impl StepLite for ordered_float::NotNan<$t> {
             #[inline]
             fn add_one(&self) -> Self {
-                // SAFETY: next_up() is well-defined to not be NaN for all non-NaN.
-                unsafe { ordered_float::NotNan::new_unchecked(self.next_up()) }
+                const SIGN_MASK: $bits = 1 << (<$bits>::BITS - 1);
+                // Smallest positive subnormal.
+                const TINY_BITS: $bits = 1;
+
+                let bits = self.into_inner().to_bits();
+                let next_bits = if bits == <$t>::INFINITY.to_bits() {
+                    bits
+                } else {
+                    let abs = bits & !SIGN_MASK;
+                    if abs == 0 {
+                        TINY_BITS
+                    } else if bits == abs {
+                        bits + 1
+                    } else {
+                        bits - 1
+                    }
+                };
+
+                // SAFETY: the successor of a non-NaN float is never NaN.
+                unsafe { ordered_float::NotNan::new_unchecked(<$t>::from_bits(next_bits)) }
             }
 
             #[inline]
             fn sub_one(&self) -> Self {
-                // SAFETY: next_down() is well-defined to not be NaN for all non-NaN.
-                unsafe { ordered_float::NotNan::new_unchecked(self.next_down()) }
+                const SIGN_MASK: $bits = 1 << (<$bits>::BITS - 1);
+                // Smallest negative subnormal.
+                const NEG_TINY_BITS: $bits = (1 << (<$bits>::BITS - 1)) | 1;
+
+                let bits = self.into_inner().to_bits();
+                let next_bits = if bits == <$t>::NEG_INFINITY.to_bits() {
+                    bits
+                } else {
+                    let abs = bits & !SIGN_MASK;
+                    if abs == 0 {
+                        NEG_TINY_BITS
+                    } else if bits == abs {
+                        bits - 1
+                    } else {
+                        bits + 1
+                    }
+                };
+
+                // SAFETY: the predecessor of a non-NaN float is never NaN.
+                unsafe { ordered_float::NotNan::new_unchecked(<$t>::from_bits(next_bits)) }
             }
         }
     )*)
 }
 
 #[cfg(feature = "ordered-float")]
-impl_step_lite_ordered_float!(f32 f64);
+impl_step_lite_not_nan!(f32 => u32, f64 => u64);
 
 // TODO: When on nightly, a blanket implementation for
 // all types that implement `core::iter::Step` instead
