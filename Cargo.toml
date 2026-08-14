@@ -1,6 +1,6 @@
 [package]
 name = "rangemap"
-version = "1.7.1"
+version = "1.8.0"
 authors = ["Jeff Parsons <jeff@parsons.io>"]
 edition = "2018"
 # The version 1 resolver unifies dev-dependency features into the library
