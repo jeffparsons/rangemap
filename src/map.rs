@@ -255,13 +255,12 @@ where
     /// any existing range _mapping to the same value_, then the ranges
     /// will be coalesced into a single contiguous range.
     ///
-    /// # Panics
-    ///
-    /// Panics if range `start >= end`.
+    /// Inserting an empty range is a no-op.
     pub fn insert(&mut self, range: Range<K>, value: V) {
-        // We don't want to have to make empty ranges make sense;
-        // they don't represent anything meaningful in this structure.
-        assert!(range.start < range.end);
+        // Inserting an empty range is a no-op.
+        if range.is_empty() {
+            return;
+        }
 
         // Wrap up the given range so that we can "borrow"
         // it as a wrapper reference to either its start or end.
@@ -368,14 +367,12 @@ where
     /// in the map, then those ranges will be contracted to no
     /// longer cover the removed range.
     ///
-    ///
-    /// # Panics
-    ///
-    /// Panics if range `start >= end`.
+    /// Removing an empty range is a no-op.
     pub fn remove(&mut self, range: Range<K>) {
-        // We don't want to have to make empty ranges make sense;
-        // they don't represent anything meaningful in this structure.
-        assert!(range.start < range.end);
+        // Removing an empty range is a no-op.
+        if range.is_empty() {
+            return;
+        }
 
         let start_wrapper: RangeStartWrapper<K> = RangeStartWrapper::new(range);
         let range = &start_wrapper.end_wrapper.range;
