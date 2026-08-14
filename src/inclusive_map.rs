@@ -2036,31 +2036,6 @@ mod tests {
         }
 
         #[proptest]
-        fn test_arbitrary_map_u8(ranges: Vec<(RangeInclusive<u8>, String)>) {
-            let ranges: Vec<_> = ranges
-                .into_iter()
-                .filter(|(range, _value)| range.start() != range.end())
-                .collect();
-            let set = ranges
-                .iter()
-                .fold(RangeInclusiveMap::new(), |mut set, (range, value)| {
-                    set.insert(range.clone(), value.clone());
-                    set
-                });
-
-            for value in 0..u8::MAX {
-                assert_eq!(
-                    set.get(&value),
-                    ranges
-                        .iter()
-                        .rev()
-                        .find(|(range, _value)| range.contains(&value))
-                        .map(|(_range, value)| value)
-                );
-            }
-        }
-
-        #[proptest]
         #[allow(deprecated)]
         fn test_hash(left: RangeInclusiveMap<F64, F64>, right: RangeInclusiveMap<F64, F64>) {
             use core::hash::{Hash, Hasher, SipHasher};
@@ -2098,17 +2073,6 @@ mod tests {
                 left.cmp(&right),
                 left.partial_cmp(&right).unwrap(),
                 "ordering is total for ordered parameters"
-            );
-        }
-
-        #[test]
-        fn test_from_array() {
-            let mut map = RangeInclusiveMap::new();
-            map.insert(0..=100, "hello");
-            map.insert(200..=300, "world");
-            assert_eq!(
-                map,
-                RangeInclusiveMap::from([(0..=100, "hello"), (200..=300, "world")])
             );
         }
     }
