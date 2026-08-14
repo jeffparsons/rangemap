@@ -3,11 +3,16 @@ name = "rangemap"
 version = "1.7.1"
 authors = ["Jeff Parsons <jeff@parsons.io>"]
 edition = "2018"
-# Opt in to the feature resolver that editions 2021 and later get by
-# default, so that dev-dependency features don't leak into normal builds.
-# Without this, our unconditional `ordered-float` dev-dependency turns on
-# that crate's `std` feature for the library too, which both hides and
-# causes `no_std` breakage.
+# The version 1 resolver unifies dev-dependency features into the library
+# build, so our unconditional `ordered-float` dev-dependency would enable
+# that crate's `std` feature here even though our users don't get it. Our
+# own builds would then see a different feature set from theirs, which is
+# exactly how `no_std` breakage goes unnoticed.
+#
+# Note that this only affects builds where this crate is the workspace
+# root, i.e. our own local and CI builds. It doesn't change anything for
+# crates that depend on us: they resolve features using whichever resolver
+# their own workspace selects.
 resolver = "2"
 license = "MIT/Apache-2.0"
 readme = "README.md"
