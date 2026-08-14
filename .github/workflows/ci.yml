@@ -53,17 +53,64 @@ jobs:
         with:
           command: test
           args: --features const_fn
+      # Unlike the features above, run this on every non-nightly toolchain
+      # rather than just stable: `ordered-float5` is the feature most likely
+      # to accidentally depend on something newer than our MSRV, because it
+      # deals in float operations that the standard library has only
+      # stabilized comparatively recently.
+      - name: test with ordered-float5
+        uses: actions-rs/cargo@v1
+        if: matrix.toolchain != 'nightly'
+        with:
+          command: test
+          args: --features ordered-float5
+      # `serde1` reaches into `ordered-float` to pick up its `serde` feature,
+      # so make sure the combination of the two actually works.
+      - name: stable test with serde and ordered-float5
+        uses: actions-rs/cargo@v1
+        if: matrix.toolchain == 'stable'
+        with:
+          command: test
+          args: --features serde1,ordered-float5
       - name: nightly test
         uses: actions-rs/cargo@v1
         if: matrix.toolchain == 'nightly'
         with:
           command: test
           args: --features nightly
+  # We claim to work without the standard library, so make sure we
+  # actually do, with every combination of features that could plausibly
+  # drag it back in.
+  no-std:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+      - name: install toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          default: true
+          profile: minimal
+          target: thumbv7em-none-eabi
+      - name: build for a bare metal target
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --target thumbv7em-none-eabi
+      # Not `quickcheck`: it depends on `getrandom`, which doesn't support
+      # bare metal targets at all, and it only makes sense in tests anyway.
+      - name: build for a bare metal target with serde1 and ordered-float5
+        uses: actions-rs/cargo@v1
+        with:
+          command: build
+          args: --target thumbv7em-none-eabi --features serde1,ordered-float5
   ci-success:
     name: ci
     if: ${{ success() }}
     needs:
       - test
+      - no-std
     runs-on: ubuntu-latest
     steps:
       - name: CI succeeded
