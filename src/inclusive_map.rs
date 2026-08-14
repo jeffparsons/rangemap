@@ -2075,5 +2075,62 @@ mod tests {
                 "ordering is total for ordered parameters"
             );
         }
+
+        fn not_nan(x: f64) -> F64 {
+            NotNan::new(x).unwrap()
+        }
+
+        #[test]
+        fn ranges_one_ulp_apart_are_coalesced() {
+            let mut map = RangeInclusiveMap::new();
+            map.insert(not_nan(0.0)..=not_nan(1.0), "hello");
+            map.insert(not_nan(1.0).add_one()..=not_nan(2.0), "hello");
+            assert_eq!(
+                map,
+                RangeInclusiveMap::from([(not_nan(0.0)..=not_nan(2.0), "hello")])
+            );
+        }
+
+        #[test]
+        fn ranges_two_ulps_apart_are_not_coalesced() {
+            let gap = not_nan(1.0).add_one();
+            let mut map = RangeInclusiveMap::new();
+            map.insert(not_nan(0.0)..=not_nan(1.0), "hello");
+            map.insert(gap.add_one()..=not_nan(2.0), "hello");
+            assert_eq!(
+                map,
+                RangeInclusiveMap::from([
+                    (not_nan(0.0)..=not_nan(1.0), "hello"),
+                    (gap.add_one()..=not_nan(2.0), "hello"),
+                ])
+            );
+            // What's between them is a single float.
+            assert_eq!(
+                map.gaps(&(not_nan(0.0)..=not_nan(2.0))).collect::<Vec<_>>(),
+                vec![gap..=gap]
+            );
+        }
+
+        #[test]
+        fn ranges_can_span_the_infinities() {
+            let mut map = RangeInclusiveMap::new();
+            map.insert(
+                not_nan(f64::NEG_INFINITY)..=not_nan(f64::INFINITY),
+                "everything",
+            );
+            map.insert(not_nan(0.0)..=not_nan(1.0), "something");
+
+            // Splitting the outer range mustn't fall over at either infinity,
+            // where stepping saturates instead of moving.
+            assert_eq!(
+                map.iter().map(|(_range, value)| *value).collect::<Vec<_>>(),
+                vec!["everything", "something", "everything"]
+            );
+            assert_eq!(
+                map.gaps(&(not_nan(f64::NEG_INFINITY)..=not_nan(f64::INFINITY)))
+                    .count(),
+                0
+            );
+        }
     }
 }

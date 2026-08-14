@@ -900,5 +900,17 @@ mod tests {
             backward.reverse();
             assert_eq!(forward, backward);
         }
+
+        fn not_nan(x: f64) -> F64 {
+            NotNan::new(x).unwrap()
+        }
+
+        #[test]
+        fn ranges_one_ulp_apart_are_coalesced() {
+            let mut set = RangeInclusiveSet::new();
+            set.insert(not_nan(0.0)..=not_nan(1.0));
+            set.insert(not_nan(1.0).add_one()..=not_nan(2.0));
+            assert_eq!(set, RangeInclusiveSet::from([not_nan(0.0)..=not_nan(2.0)]));
+        }
     }
 }

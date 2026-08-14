@@ -249,3 +249,105 @@ where
         start.sub_one()
     }
 }
+
+#[cfg(all(test, feature = "ordered-float5"))]
+mod tests {
+    use super::*;
+    use alloc as std;
+    use alloc::format;
+    use ordered_float::NotNan;
+    use proptest::prelude::*;
+    use test_strategy::proptest;
+
+    fn not_nan(x: f64) -> NotNan<f64> {
+        NotNan::new(x).unwrap()
+    }
+
+    fn not_nan_32(x: f32) -> NotNan<f32> {
+        NotNan::new(x).unwrap()
+    }
+
+    // We can't check any of these against the standard library's `next_up`
+    // and `next_down`, because those are newer than our MSRV, so spell out
+    // what "one ULP away" means in terms of the underlying bit patterns
+    // instead.
+
+    #[test]
+    fn steps_to_the_next_representable_float() {
+        assert_eq!(
+            not_nan(1.0).add_one(),
+            not_nan(f64::from_bits(1.0f64.to_bits() + 1))
+        );
+        assert_eq!(
+            not_nan(1.0).sub_one(),
+            not_nan(f64::from_bits(1.0f64.to_bits() - 1))
+        );
+
+        // Negative values run the other way through the bit patterns.
+        assert_eq!(
+            not_nan(-1.0).add_one(),
+            not_nan(f64::from_bits((-1.0f64).to_bits() - 1))
+        );
+        assert_eq!(
+            not_nan(-1.0).sub_one(),
+            not_nan(f64::from_bits((-1.0f64).to_bits() + 1))
+        );
+    }
+
+    #[test]
+    fn steps_from_zero_to_the_smallest_subnormals() {
+        let tiny = f64::from_bits(1);
+        assert_eq!(not_nan(0.0).add_one(), not_nan(tiny));
+        assert_eq!(not_nan(0.0).sub_one(), not_nan(-tiny));
+
+        // `NotNan` considers `-0.0` and `0.0` equal, so they have to step
+        // to the same neighbours as each other.
+        assert_eq!(not_nan(-0.0).add_one(), not_nan(tiny));
+        assert_eq!(not_nan(-0.0).sub_one(), not_nan(-tiny));
+    }
+
+    #[test]
+    fn steps_saturate_at_the_infinities() {
+        assert_eq!(not_nan(f64::MAX).add_one(), not_nan(f64::INFINITY));
+        assert_eq!(not_nan(f64::INFINITY).add_one(), not_nan(f64::INFINITY));
+        assert_eq!(not_nan(f64::MIN).sub_one(), not_nan(f64::NEG_INFINITY));
+        assert_eq!(
+            not_nan(f64::NEG_INFINITY).sub_one(),
+            not_nan(f64::NEG_INFINITY)
+        );
+
+        // The infinities still step back inwards, though.
+        assert_eq!(not_nan(f64::INFINITY).sub_one(), not_nan(f64::MAX));
+        assert_eq!(not_nan(f64::NEG_INFINITY).add_one(), not_nan(f64::MIN));
+    }
+
+    #[test]
+    fn f32_steps_the_same_way_as_f64() {
+        assert_eq!(
+            not_nan_32(1.0).add_one(),
+            not_nan_32(f32::from_bits(1.0f32.to_bits() + 1))
+        );
+        assert_eq!(not_nan_32(0.0).add_one(), not_nan_32(f32::from_bits(1)));
+        assert_eq!(not_nan_32(-0.0).add_one(), not_nan_32(f32::from_bits(1)));
+        assert_eq!(not_nan_32(f32::MAX).add_one(), not_nan_32(f32::INFINITY));
+        assert_eq!(
+            not_nan_32(f32::INFINITY).add_one(),
+            not_nan_32(f32::INFINITY)
+        );
+    }
+
+    #[proptest]
+    fn steps_are_reversible(x: NotNan<f64>) {
+        // Not at the infinities, where stepping outwards saturates.
+        prop_assume!(x.into_inner().is_finite());
+        assert_eq!(x.add_one().sub_one(), x);
+        assert_eq!(x.sub_one().add_one(), x);
+    }
+
+    #[proptest]
+    fn steps_move_in_the_right_direction(x: NotNan<f64>) {
+        prop_assume!(x.into_inner().is_finite());
+        assert!(x.add_one() > x);
+        assert!(x.sub_one() < x);
+    }
+}
