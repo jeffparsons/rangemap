@@ -105,12 +105,33 @@ jobs:
         with:
           command: build
           args: --target thumbv7em-none-eabi --features serde1,ordered-float5
+  # Only on stable: rustfmt's output changes from time to time, so running
+  # this across the whole toolchain matrix would just mean two versions
+  # disagreeing about what "formatted" means.
+  formatting:
+    runs-on: ubuntu-latest
+    steps:
+      - name: checkout
+        uses: actions/checkout@v2
+      - name: install toolchain
+        uses: actions-rs/toolchain@v1
+        with:
+          toolchain: stable
+          default: true
+          profile: minimal
+          components: rustfmt
+      - name: check formatting
+        uses: actions-rs/cargo@v1
+        with:
+          command: fmt
+          args: --all -- --check
   ci-success:
     name: ci
     if: ${{ success() }}
     needs:
       - test
       - no-std
+      - formatting
     runs-on: ubuntu-latest
     steps:
       - name: CI succeeded

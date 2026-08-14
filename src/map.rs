@@ -819,7 +819,9 @@ where
     }
 }
 
-impl<K: Ord + Clone, V: PartialEq + Clone, const N: usize> From<[(Range<K>, V); N]> for RangeMap<K, V> {
+impl<K: Ord + Clone, V: PartialEq + Clone, const N: usize> From<[(Range<K>, V); N]>
+    for RangeMap<K, V>
+{
     fn from(value: [(Range<K>, V); N]) -> Self {
         let mut map = Self::new();
         for (range, value) in IntoIterator::into_iter(value) {
