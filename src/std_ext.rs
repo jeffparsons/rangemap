@@ -121,7 +121,8 @@ macro_rules! impl_step_lite {
 
 impl_step_lite!(usize u8 u16 u32 u64 u128 i8 i16 i32 i64 i128);
 
-// The successor of a float is the next representable float, i.e. one ULP away.
+// The successor of a float is the next representable float,
+// i.e. one ULP (unit in the last place) away.
 //
 // We can't use the standard library's `next_up` and `next_down` for this
 // because they were only stabilised in Rust 1.86, well beyond our MSRV,
