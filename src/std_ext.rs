@@ -133,6 +133,9 @@ impl_step_lite!(usize u8 u16 u32 u64 u128 i8 i16 i32 i64 i128);
 //
 // We don't need the standard library's NaN check, because `NotNan` has
 // already ruled that out for us.
+//
+// TODO: Delete all of this the next time we raise our MSRV past 1.86,
+// and call `next_up`/`next_down` directly instead.
 #[cfg(feature = "ordered-float5")]
 macro_rules! impl_step_lite_not_nan {
     ($($t:ty => $bits:ty),* $(,)?) => ($(
