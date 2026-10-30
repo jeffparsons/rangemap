@@ -201,16 +201,29 @@ where
     /// Gets an iterator over all the stored ranges that are
     /// either partially or completely overlapped by the given range.
     pub fn overlapping<R: Borrow<Range<K>>>(&'_ self, range: R) -> Overlapping<'_, K, V, R> {
-        // Find the first matching stored range by its _end_,
+        // Find the last matching stored range by its _start_,
         // using sneaky layering and `Borrow` implementation. (See `range_wrappers` module.)
-        let start_sliver =
-            RangeEndWrapper::new(range.borrow().start.clone()..range.borrow().start.clone());
-        let btm_range_iter = self
+        let end_sliver =
+            RangeStartWrapper::new(range.borrow().end.clone()..range.borrow().end.clone());
+        // We query with the bounded range with the `end_sliver` in advance,
+        // to avoid `O(n)` scan over all stored ranges in `Overlapping::next_back()`.
+        let btm_range_iter = match self
             .btm
-            .range::<RangeEndWrapper<K>, (Bound<&RangeEndWrapper<K>>, Bound<_>)>((
-                Bound::Excluded(&start_sliver),
-                Bound::Unbounded,
-            ));
+            .range::<RangeStartWrapper<K>, _>(..&end_sliver)
+            .next_back()
+        {
+            Some((last, _)) if last.end > range.borrow().start => {
+                let start_sliver = RangeEndWrapper::new(
+                    range.borrow().start.clone()..range.borrow().start.clone(),
+                );
+                // Query with `(range.start, last.end]` which is exactly the overlapping range.
+                self.btm.range::<RangeEndWrapper<K>, _>((
+                    Bound::Excluded(&start_sliver),
+                    Bound::Included(&last.end_wrapper),
+                ))
+            }
+            _ => Default::default(),
+        };
         Overlapping {
             query_range: range,
             btm_range_iter,

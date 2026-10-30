@@ -8,7 +8,7 @@ use core::fmt::{self, Debug};
 use core::hash::Hash;
 use core::iter::{DoubleEndedIterator, FromIterator};
 use core::marker::PhantomData;
-use core::ops::{RangeFrom, RangeInclusive};
+use core::ops::RangeInclusive;
 use core::prelude::v1::*;
 
 #[cfg(feature = "serde1")]
@@ -568,16 +568,28 @@ where
         &'_ self,
         range: R,
     ) -> Overlapping<'_, K, V, R> {
-        // Find the first matching stored range by its _end_,
+        // Find the last matching stored range by its _start_,
         // using sneaky layering and `Borrow` implementation. (See `range_wrappers` module.)
-        let start_sliver = RangeInclusiveEndWrapper::new(
-            range.borrow().start().clone()..=range.borrow().start().clone(),
+        let end_sliver = RangeInclusiveStartWrapper::new(
+            range.borrow().end().clone()..=range.borrow().end().clone(),
         );
-        let btm_range_iter = self
+        // We query with the bounded range with the `end_sliver` in advance,
+        // to avoid `O(n)` scan over all stored ranges in `Overlapping::next_back()`.
+        let btm_range_iter = match self
             .btm
-            .range::<RangeInclusiveEndWrapper<K>, RangeFrom<&RangeInclusiveEndWrapper<K>>>(
-                &start_sliver..,
-            );
+            .range::<RangeInclusiveStartWrapper<K>, _>(..=&end_sliver)
+            .next_back()
+        {
+            Some((last, _)) if last.end() >= range.borrow().start() => {
+                let start_sliver = RangeInclusiveEndWrapper::new(
+                    range.borrow().start().clone()..=range.borrow().start().clone(),
+                );
+                // Query with `(range.start..=last.end)` which is exactly the overlapping range.
+                self.btm
+                    .range::<RangeInclusiveEndWrapper<K>, _>(&start_sliver..=&last.end_wrapper)
+            }
+            _ => Default::default(),
+        };
         Overlapping {
             query_range: range,
             btm_range_iter,
