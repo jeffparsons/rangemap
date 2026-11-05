@@ -8,7 +8,7 @@ use core::fmt::{self, Debug};
 use core::hash::Hash;
 use core::iter::{DoubleEndedIterator, FromIterator};
 use core::marker::PhantomData;
-use core::ops::RangeInclusive;
+use core::ops::{RangeFrom, RangeInclusive};
 use core::prelude::v1::*;
 
 #[cfg(feature = "serde1")]
@@ -568,31 +568,23 @@ where
         &'_ self,
         range: R,
     ) -> Overlapping<'_, K, V, R> {
-        // Find the last matching stored range by its _start_,
+        // Find the first matching stored range by its _end_,
         // using sneaky layering and `Borrow` implementation. (See `range_wrappers` module.)
-        let end_sliver = RangeInclusiveStartWrapper::new(
-            range.borrow().end().clone()..=range.borrow().end().clone(),
+        let start_sliver = RangeInclusiveEndWrapper::new(
+            range.borrow().start().clone()..=range.borrow().start().clone(),
         );
-        // We query with the bounded range with the `end_sliver` in advance,
-        // to avoid `O(n)` scan over all stored ranges in `Overlapping::next_back()`.
-        let btm_range_iter = match self
+        let btm_range_iter = self
             .btm
-            .range::<RangeInclusiveStartWrapper<K>, _>(..=&end_sliver)
-            .next_back()
-        {
-            Some((last, _)) if last.end() >= range.borrow().start() => {
-                let start_sliver = RangeInclusiveEndWrapper::new(
-                    range.borrow().start().clone()..=range.borrow().start().clone(),
-                );
-                // Query with `(range.start..=last.end)` which is exactly the overlapping range.
-                self.btm
-                    .range::<RangeInclusiveEndWrapper<K>, _>(&start_sliver..=&last.end_wrapper)
-            }
-            _ => Default::default(),
-        };
+            .range::<RangeInclusiveEndWrapper<K>, RangeFrom<&RangeInclusiveEndWrapper<K>>>(
+                &start_sliver..,
+            );
         Overlapping {
             query_range: range,
+            btm: &self.btm,
             btm_range_iter,
+            btm_range_iter_back: None,
+            last_front: None,
+            last_back: None,
         }
     }
 
@@ -900,7 +892,17 @@ where
 /// [`overlapping`]: RangeInclusiveMap::overlapping
 pub struct Overlapping<'a, K, V, R: Borrow<RangeInclusive<K>> = &'a RangeInclusive<K>> {
     query_range: R,
+    btm: &'a BTreeMap<RangeInclusiveStartWrapper<K>, V>,
+    // Bounded only by the start of the query range. Only `next` uses this.
     btm_range_iter: alloc::collections::btree_map::Range<'a, RangeInclusiveStartWrapper<K>, V>,
+    // Bounded only by the end of the query range. Only `next_back` uses this,
+    // and it's created on first use so that forward iteration doesn't pay for it.
+    btm_range_iter_back:
+        Option<alloc::collections::btree_map::Range<'a, RangeInclusiveStartWrapper<K>, V>>,
+    // The most recent ranges returned from each end, so that
+    // the two underlying iterators can stop when they meet.
+    last_front: Option<&'a RangeInclusive<K>>,
+    last_back: Option<&'a RangeInclusive<K>>,
 }
 
 // `Overlapping` is always fused. (See definition of `next` below.)
@@ -917,11 +919,17 @@ where
 
     fn next(&mut self) -> Option<Self::Item> {
         if let Some((k, v)) = self.btm_range_iter.next() {
-            if k.start() <= self.query_range.borrow().end() {
+            let in_bounds = match self.last_back {
+                Some(last_back) => k.start() < last_back.start(),
+                None => k.start() <= self.query_range.borrow().end(),
+            };
+            if in_bounds {
+                self.last_front = Some(&k.range);
                 Some((&k.range, v))
             } else {
                 // The rest of the items in the underlying iterator
-                // are past the query range. We can keep taking items
+                // are past the query range, or have already been
+                // returned by `next_back`. We can keep taking items
                 // from that iterator and this will remain true,
                 // so this is enough to make the iterator fused.
                 None
@@ -937,13 +945,26 @@ where
     K: Ord + Clone,
 {
     fn next_back(&mut self) -> Option<Self::Item> {
-        while let Some((k, v)) = self.btm_range_iter.next_back() {
-            if k.start() <= self.query_range.borrow().end() {
-                return Some((&k.range, v));
-            }
+        if self.btm_range_iter_back.is_none() {
+            let query_end = self.query_range.borrow().end();
+            let end_sliver = RangeInclusiveStartWrapper::new(query_end.clone()..=query_end.clone());
+            self.btm_range_iter_back = Some(
+                self.btm
+                    .range::<RangeInclusiveStartWrapper<K>, _>(..=&end_sliver),
+            );
         }
-
-        None
+        let (k, v) = self.btm_range_iter_back.as_mut()?.next_back()?;
+        let in_bounds = match self.last_front {
+            Some(last_front) => k.start() > last_front.start(),
+            None => k.end() >= self.query_range.borrow().start(),
+        };
+        if in_bounds {
+            self.last_back = Some(&k.range);
+            Some((&k.range, v))
+        } else {
+            // As in `next`, everything further along is out of bounds, too.
+            None
+        }
     }
 }
 
@@ -1830,6 +1851,97 @@ mod tests {
         assert_eq!(overlapping.next(), None);
         // Gaps iterator should be fused.
         assert_eq!(overlapping.next(), None);
+    }
+
+    #[test]
+    fn overlapping_from_both_ends_stops_where_they_meet() {
+        let mut range_map: RangeInclusiveMap<u32, bool> = RangeInclusiveMap::new();
+        for i in 0..5 {
+            range_map.insert(i * 3..=i * 3 + 1, false);
+        }
+        // Partially overlaps the first and last matching stored ranges.
+        let query_range = 1..=9;
+        // Every interleaving of `next` and `next_back`,
+        // going far enough to also check it stays fused.
+        for pattern in 0u32..1 << 8 {
+            let mut expected = vec![0..=1, 3..=4, 6..=7, 9..=10];
+            let mut overlapping = range_map.overlapping(&query_range);
+            for step in 0..8 {
+                if pattern >> step & 1 == 0 {
+                    let next = (!expected.is_empty()).then(|| expected.remove(0));
+                    assert_eq!(overlapping.next().map(|(range, _)| range.clone()), next);
+                } else {
+                    let next_back = expected.pop();
+                    assert_eq!(
+                        overlapping.next_back().map(|(range, _)| range.clone()),
+                        next_back
+                    );
+                }
+            }
+        }
+    }
+
+    #[derive(Clone, Debug)]
+    struct CountingKey<'a> {
+        value: u32,
+        comparisons: &'a core::cell::Cell<usize>,
+    }
+
+    impl PartialEq for CountingKey<'_> {
+        fn eq(&self, other: &Self) -> bool {
+            self.cmp(other) == Ordering::Equal
+        }
+    }
+
+    impl Eq for CountingKey<'_> {}
+
+    impl PartialOrd for CountingKey<'_> {
+        fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+            Some(self.cmp(other))
+        }
+    }
+
+    impl Ord for CountingKey<'_> {
+        fn cmp(&self, other: &Self) -> Ordering {
+            self.comparisons.set(self.comparisons.get() + 1);
+            self.value.cmp(&other.value)
+        }
+    }
+
+    impl StepLite for CountingKey<'_> {
+        fn add_one(&self) -> Self {
+            CountingKey {
+                value: self.value + 1,
+                comparisons: self.comparisons,
+            }
+        }
+
+        fn sub_one(&self) -> Self {
+            CountingKey {
+                value: self.value - 1,
+                comparisons: self.comparisons,
+            }
+        }
+    }
+
+    #[test]
+    fn overlapping_next_back_does_not_scan_the_rest_of_the_map() {
+        let comparisons = core::cell::Cell::new(0);
+        let key = |value| CountingKey {
+            value,
+            comparisons: &comparisons,
+        };
+        let mut range_map = RangeInclusiveMap::new();
+        for i in 0..10_000 {
+            range_map.insert(key(i * 3)..=key(i * 3 + 1), ());
+        }
+        let query_range = key(2)..=key(4);
+
+        comparisons.set(0);
+        let (range, _) = range_map.overlapping(&query_range).next_back().unwrap();
+
+        assert_eq!(range.start().value, 3);
+        assert!(comparisons.get() < 100, "{} comparisons", comparisons.get());
     }
 
     #[test]
