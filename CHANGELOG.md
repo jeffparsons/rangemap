@@ -1,3 +1,12 @@
+### v1.9.0 (unreleased)
+
+- **Features**:
+    - Improve performance of `next_back` on the iterators returned by `overlapping`, by no longer scanning backwards from the end of the map to find the query range. Thanks to [Byunk](https://github.com/Byunk) for finding and fixing this!
+
+- **Changes**:
+    - **Technically breaking:** The `DoubleEndedIterator` implementation for `map::Overlapping` now requires `K: Clone`, to match `inclusive_map::Overlapping`. `RangeMap::overlapping` already requires this, so this should only affect generic code that names `map::Overlapping` with a key type not known to be `Clone`.
+
+
 ### v1.8.0 (2026-08-14)
 
 - **Features**:
