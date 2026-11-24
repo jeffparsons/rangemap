@@ -1,4 +1,4 @@
-### v1.9.0 (unreleased)
+### v1.9.0 (2026-11-24)
 
 - **Features**:
     - Improve performance of `next_back` on the iterators returned by `overlapping`, by no longer scanning backwards from the end of the map to find the query range. Thanks to [Byunk](https://github.com/Byunk) for finding and fixing this!
