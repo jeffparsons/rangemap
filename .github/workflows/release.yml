@@ -1,0 +1,39 @@
+name: Release
+
+on:
+  push:
+    tags: ['v*']
+
+permissions:
+  contents: read
+
+jobs:
+  ci:
+    uses: ./.github/workflows/ci.yml
+
+  # Publishes using crates.io's "trusted publishing", so there's no long-lived
+  # crates.io token to store or rotate. The crate's settings on crates.io name
+  # this repository, this file, and the `release` environment, so renaming
+  # this file or that environment will break publishing.
+  publish:
+    needs: ci
+    runs-on: ubuntu-latest
+    environment: release
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - uses: actions/checkout@v7
+      - uses: dtolnay/rust-toolchain@stable
+      - name: Check tag matches crate version
+        run: |
+          version=$(cargo metadata --no-deps --format-version 1 | jq -r '.packages[0].version')
+          if [ "$GITHUB_REF_NAME" != "v$version" ]; then
+            echo "Tag $GITHUB_REF_NAME does not match crate version $version"
+            exit 1
+          fi
+      - uses: rust-lang/crates-io-auth-action@v1
+        id: auth
+      - run: cargo publish --locked
+        env:
+          CARGO_REGISTRY_TOKEN: ${{ steps.auth.outputs.token }}
